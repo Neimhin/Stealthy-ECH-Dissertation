@@ -1,0 +1,93 @@
+\chapter{Background}
+
+\section{TLS}
+\subsection{Early Years of SSL}
+      - **p:** the SSL protocol was, in essence, developed to facilitate credit/debit card transactions (and hence e-commerce/internet shops) on the internet
+      - **p:** to achieve this we need the credit card details to be confidential, but the client (who owns the credit card) also needs to know they are sending their details to a legitimate server (authentication) 
+      - **p:** it turns out that application-data-confidentiality and server-authentication are much more generically useful and valuable for the security and privacy of netizens, so SSL was standardized by the IETF under the new name TLS
+\subsection{Standardising TLS}
+      - **p:** the term 'transport layer' in Transport Layer Security refer's to the same thing as the OSI model's 'transport layer', which is a conceptual division of the roles/responsibilities of different pieces of software, and which helps in identifying appropriate levels of abstraction for programming models/interfaces
+      - **p:** Two important protocols in the transport layer are TCP and UDP, and TLS (or DTLS respectively) wraps the TCP and UDP protocols providing confidential/authenticated versions of these protocols. IP packets are not large enough to transfer arbitrary messages in a single packet, so messages are broken up into sequences of packets, and the transport layer protocols are concerned with how the larger messages are split up into IP packets, as well as trade-offs between reliability, latency, and network congestion (TCP prioritises complete delivery of the message in the proper order, whereas UDP prioritises low latency).
+      - **p:** The API for establishing a TLS connection is designed to be as similar as possible to that of establishing a TCP connection, except that there are additional interfaces for configuring authentication and new kinds of failures that can occur with TLS connection that the API must expose.
+      - **p:** In an ideal world all information pertaining to other layers of the OSI model (in particular application, presentation, and session) would be opaque from the perspective of (and encrypted under) TLS (i.e. we would have a clear separation of the OSI layers), but over the years TLS has incorporated various application-level information in extensions (SNI, ALPN) which are not encrypted.
+      - **p:** why SNI was introduced and so widely deployed
+          - many virtual hosts accessed via a single IP:PORT
+          - cloud providers and CDNs started to host thousands of virtual hosts at each IP:PORT
+          - SNI was required in order to serve the appropriate server certificate in the TLS handshake
+          - the servername is mapped to an IP address by the client by querying the DNS, but often the IP address no longer identifies a single servername
+          - the servername is arguably application-layer information (it serves to make the application's user-interface more friendly), and thus the inclusion of the SNI in TLS is a violation of the OSI model. 
+      - **p:** why ALPN was introduced and so widely deployed
+      - **p:** hint/cross reference that SNI and ALPN are privacy leaks and used by censors
+\subsection{TLS 1.3}
+      - **p:** development of TLS 1.3 largely motivated by Snowdonia
+      - **p:** TLS 1.3 was a major update to the protocol compared to TLS 1.2 (although the significance of the update is not reflected in the name)
+      - **p:** earlier drafts of TLS 1.3 were found to have significant deployment failure/issues due to middleboxes incorrectly implementing earlier version of TLS (not ignoring value appropriately etc.)
+      - **p:** various unfortunate cludges such as the version field indicating 1.2 and true version in \var{supported_versions} extension, but these are not a big problem
+      - **p:** due to its' importance on the internet and hence for the global economy TLS 1.3 has seen considerable cryptographic and security analysis, which endows it with lots of confidence from systems architects, and so TLS (and especially TLS 1.3) is being incorporated into many systems beyond just client/server web connections (e.g. email, DNS, connections between servers/databases in data centers etc.
+      - **p:** a common flow on the web is for a browser session to establish many concurrent connections, and some features of TLS 1.3 facilitate performing these many connections scalably, 0-RTT (careful!), session tickets/resumption, stateless tickets
+\subsection{CAs and the Web PKI}
+      - **p:** CAs and the Web PKI are all about server authentication, linking server names to trusted servers
+\subsection{Fixing the SNI leak: ESNI}
+      - **p:** How the SNI is used in censorship (DPI) and pervasive monitoring.
+      - **p:** How does ESNI work? What are its properties?
+      - **p:** Over-blocking as a deterent for deploying ESNI (empirical example in China)
+      - **p:** Implications of regional blocking
+\subsection{ECH}
+      - **p:** ESNI being blocked, and actually more parts of the ClientHello that are sensitive, so let's encrypt the whole thing!
+      - **p:** Current status of ECH development and deployment: IETF draft, option on cloudflare
+      - **p:** Particular design goal: don't stick out, implemented with GREASE
+      - **p:** Could stick out even less if an ECH handshake looked exactly like a regular TLS 1.3 handshake. The fact that ECH sticks out (/requires GREASE not to stick out), makes it technically easy for ECH to be blocked entirely, especially by state-level censors (China, Iran, South Korea).
+      - **p:** IETF pursues ECH for relatively pure reasons, privacy enhancement, less censorship. Why are companies like cloudflare and google pursuing ECH if there's a risk of it being blocked? -> google.com currently blocked in china, could google get access to a 4 billion person market by deploying ECH?
+      - **p:** What would it mean if ECH were made a default in popular clients like Google Chrome, Firefox?
+      - **p:** Google and China play Chicken (Comic illustration?)
+\subsection{Internet Censorship}
+      - **p:** RFC 9505 names three actions taken by censors: prescription, identification, and interference (give/discuss definitions)
+      - **p:** Prescription is the process of determining what to censor, and there is little that be done on the technical front to influence the prescription process, but identification and interference can be circumvented with technical means.
+      - **p:** Censorship is usually facilitated by a centralisation of control of some aspect of the Internet, e.g. the nameservers, Internet Exchange Points, CAs, but censorship can be (and is) also implemented by service providers such as in Google search results, social media (e.g. Donald Trump's Twitter ban) etc.
+      - **p:** Censorship is easier and cheaper when data are not encrypted. When data are encrypted a censor might decide to over-block in order to block the comms that have been prescribed to be censored.
+     - **p:** Residual censoring is when a censor blocks traffic between two endpoints as a punishment after identifying blocked comms between the two endpoints (empirical example in China). Also: non-technical punishments for attempts to circumvent censorship, such as social credit reductions, imprisonment, confiscation.
+     - **p:** Port blocking can be used to target HTTPS, possibly forcing netizens to fall back to HTTP, and using HTTP instead of HTTPS facilitates more thorough/targeted censorship.
+     - **p:** In this work we are considering the scenario where TLS (esp. 1.3) is possible (not blocked), but where domains are blocked based on the SNI.
+     - **p:** Note that censors often employ a wide range of technical measures to block the same thing (e.g. IP/TCP header-based blocking and DPI and residual consoring and DNS poisoning), meaning that circumventing one of those measures might not be enough to gain access to the blocked comms channel.
+
+% At the beginning of each chapter, a description should introduce the reader to the content of the chapter. The description should explain to the reader the layout of the chapter, the contribution that the chapter makes to the overall dissertation and the contribution of the individual sections towards the overall chapter.
+
+% From the perspective of this document forming part of your degree, this chapter should demonstrate to the reader your knowledge of the area of your dissertation project. It should present your knowledge in a coherent and detailed form. The reader should understand that you have in-depth knowledge of the area of the dissertation without being overloaded with information.
+
+% \section{Background}
+
+% A section on the background of the dissertation should provide the reader with an introduction to existing technologies and concepts that form the basis of the
+% work presented in the dissertation.
+
+
+% \section{Closely-Related Work}
+
+% Work in research areas tends to address a number of specific aspects. Ideally, the discussion of published research should focus on the aspects that have been addressed by various publications - and not a discussion of the individual publications.
+
+% For example, if the topic would be a discussion of work on programming languages, the subsections of the related work could be discussions of object orientation and its realisation in various languages or the use of lambda functions by these languages.
+
+% \subsection{Aspect \#1}
+
+
+% \subsection{Aspect \#2}
+
+% \section{Summary}
+
+% Summarize the chapter and present a comparison of the projects that you reviewed.
+
+% \begin{table}[!h]
+% \begin{center}
+% 	\begin{tabular}{|l|c|c|} 
+% 	\hline
+%  	\bf  & \bf Aspect \#1  & \bf Aspect \#2 \\
+%   	\hline
+% 	Row 1 & Item 1 & Item 2 \\
+% 	Row 2 & Item 1 & Item 2 \\
+% 	Row 3 & Item 1 & Item 2 \\
+% 	Row 4 & Item 1 & Item 2 \\
+% 	\hline
+% 	\end{tabular}
+% \end{center}
+% \caption[Comparison of Closely-Related Projects]{Caption that explains the table to the reader}	
+% \label{tab:SummaryProjects}
+% \end{table}
