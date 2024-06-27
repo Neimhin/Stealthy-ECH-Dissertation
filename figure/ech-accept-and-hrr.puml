@@ -1,0 +1,17 @@
+@startuml
+participant c as "client"
+participant cfs as "client-facing server"
+participant bs as "backend server"
+
+skinparam SequenceMessageAlign direction
+
+c -> cfs: ClientHelloOuter\n+encrypted_client_hello
+cfs -> bs: ClientHelloInner 
+bs -> cfs: HelloRetryRequest\n(need retry of ClientHelloInner\nbut accept ECH)
+cfs --> c: HelloRetryRequest
+c -> cfs: ClientHelloOuter2\n+encrypted_client_hello2
+cfs -> bs: ClientHelloInner2
+bs -> cfs: ServerHello
+cfs --> c: ServerHello\n...
+@enduml
+

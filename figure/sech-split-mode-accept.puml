@@ -1,0 +1,13 @@
+@startuml
+participant c as "client"
+participant cfs as "client-facing server"
+participant bs as "backend server"
+
+skinparam SequenceMessageAlign direction
+
+c -> cfs: ClientHello\n+<inner_servername>\n
+cfs -> bs: ClientHello\n+stealthy_encrypted_client_hello
+bs -> cfs: ServerHello\n+<sech_accept_confirmation>
+cfs --> c: ServerHello
+@enduml
+

@@ -1,0 +1,12 @@
+@startuml
+participant c as "client"
+participant cfs as "client-facing server"
+participant bs as "backend server"
+
+skinparam SequenceMessageAlign direction
+
+c -> cfs: ClientHelloOuter\n+encrypted_client_hello
+cfs -> c: HelloRetryRequest\n(reject parameters of ClientHelloOuter\nand fail to accept ECH)
+c -> cfs: Alert (level=fatal, desc=ech_required)
+@enduml
+
