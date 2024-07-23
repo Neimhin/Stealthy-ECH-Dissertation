@@ -1,7 +1,16 @@
 \chapter{Evaluation}
 \label{chap:Evaluation}
 
-\section{Security and Privacy Considerations}
+\section{General Security and Privacy Considerations for SECH}
+
+\subsection{Protocol Confidentiality}
+As mentioned in Section~\ref{bleichenbacher-attack} any good \ac{SECH} protocol should protect the confidentiality of the fact that \ac{SECH} is being attempted and the fact that \ac{SECH} is supported. There are aspects of the protocol design that will protect this information, for instance how the connection continues with regular \ac{TLS} 1.3 whenever \ac{SECH} is aborted.
+However, ensuring the confidentiality of this information depends also on
+a careful and secure information. For instance, it may be possible for an attacker to somehow with high likelihood guess the library/implementation used for a particular channel. With this information the attacker could then analyse the timing of messages, or the particular alert messages under various circumstances to gain information about whether \ac{SECH} is in use.
+The recurring discovery of \ref{bleichenbacher-attack}-style attacks are an attestation to the difficulty of implementing protocols that do not reveal such secret information.
+
+To make matters worse, unlike \ac{RSA} private messages/keys which consist of many bits, the fact of a protocol being used/supported can be represented by a single bit, so protocol confidentiality is broken if an attacker can attain this single bit, meaning a successful attack will likely require much fewer oracle accesses than is the case for \ref{bleichenbacher-attack}. It should not be taken for granted that any given implementation of \ac{SECH} sufficiently protects protocol confidentiality.
+
 % The Evaluation chapter should present a comparison of the work that forms the basis of the dissertation and existing work. At a higher level, it should demonstrate an awareness of the relationship of the dissertation work to the research area that it is based in.
 
 % \section{Experiments}

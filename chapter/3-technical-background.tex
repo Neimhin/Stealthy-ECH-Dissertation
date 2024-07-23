@@ -193,3 +193,23 @@ It seems unlikely, however, that there would be much benefit from the server bei
     - Detecting the length of the domain name
 
 [ ] must not be possible for an attacker to detect the length of the inner servername, merely knowing the length of the servername could leak the servername itself
+
+
+\section{Threat Models and Attacks}
+
+\subsection{Bleichenbacher Attacks \label{bleichenbacher-attack}}
+\cite{bleichenbacher1998chosen} demonstrated how an attacker could reveal the \premastersecret{} of an \ac{SSL} 3.0 connection when the \premastersecret{} is protected with \ac{RSA} public key encryption.
+The effectiveness of the attack varied according to the specifics of the implementation, in particular the granularity of information revealed by the server about why a handshake is aborted.
+The method, which is based on informatoin leaked by the server about decryption failure or incorrect formatting of plaintexts, was quite easily generalised and variants of the attack have been repeatedly found.
+Also, \cite{boeck2018robot} showed that variants of the attack were still effective against a broad set of Internet servers, despite years of research and effort spent trying to plug leaks in protocols and implementations.
+Therefore, in designing a new cryptographic protocol it would be remiss not to account for this type of attack.
+
+\citeauthor{bleichenbacher1998chosen}'s (\citeyear{bleichenbacher1998chosen}) adaptive-chosen-ciphertext attack against \ac{RSA} when using  \ac{PKCS} \#1 standard concerns the situation where
+the \ac{RSA} public key $n,e$ and the ciphertext $c$
+are known to an attacker who wants to recover the secret message, $m=c^d\mod n$, or even
+the \ac{RSA} secret key $d$.
+In \ac{PKCS} \#1 the secret message is padded to the length of $n$, including a fixed prefix \var{0x00 0x02}.
+By sending a malicious ciphertext $c'\equiv cs^e\mod n$, where $s$ is chosen adaptively, if a server reveals that the corresponding plaintext $m'=c'^d\mod n$ is correctly formatted, then the attacker knows the first two bytes of $m'$ are \var{0x00 0x02}.
+By cleverly using this information in adapting successive choices of $s$ they find that for a 1024-bit modulus $n$ the expected number of oracle accesses needed to recover the secret message is about 1,000,000, which is reasonably low and hence enable practical attacks.
+
+A primary goal of the \ac{SECH} protocol is to maintaining confidentiality of the very fact that \ac{SECH} is being attempted, and also confidentiality of whether the server supports \ac{SECH}. Care must be taken, therefore, to ensure that responses from a server, such as alert about encryption or formatting errors, as well as the timing of those responses, do not reveal information about whether the server: 1. supports \ac{SECH} at all, and 2. tried/failed/succeeded \ac{SECH} decryption or parsing.
