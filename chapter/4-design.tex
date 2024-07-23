@@ -1,3 +1,4 @@
+
 \chapter{Design}
 \label{chap:Design}
 
@@ -8,7 +9,10 @@
 
 [ ] motivations for split-mode: 1. distribute workload, 2. enhanced privacy for backend server (client-facing server can't see application traffic)
 
-[ ] reasons for hesitance in deploying split-mode: 1. low incentive for large providers (the provider loses access to the application data and parts of the handshake), 2. more complex to deploy/maintain/configure than shared-mode 
+[ ] reasons for hesitance in deploying split-mode: 1. low incentive for large providers (the provider loses access to the application data and parts of the handshake), 2. more complex to deploy/maintain/configure than shared-mode
+
+\section{Naïve idea: incorporate shared secret in key-schedule}
+Looking at a naïve design assuming a shared secret $s$ known to client, client-facing server, and backend server, the client uses AEAD to create a cipher text of the inner servername and encodes the cipher text (including AEAD nonce and tag) in some cover fields of the \var{ClientHello}. An attacker can copy and paste the full cipher text
 
 % Sequence diagram for a proposed stealthy ECH protocol. In this sequence diagram SECH is accepted by the server. Dotted lines indicate an exact forwarding of the message by the client-facing server. Fields in angle brackets ($\langle\ldots\rangle$) are encrypted under a special SECH-specific key and hidden in the message stealthily.
 %\includescalefigure{fig:sech-split-mode-accept}{}{1}{figure/sech-split-mode-accept.pdf}
@@ -37,61 +41,10 @@
 [ ] circumvention in depth: use lots of different circumvention methods (including this insecure one) in order to increase the cost of censorship
 \subsection{Design}
 \subsection{Implementation Notes}
-\section{SECH 2: Static Secret Shared OOB}
-\subsection{Motivations and Deployment Scenarios}
 
-[ ] if the client and servver can share the OOB secret securely then we can implement a highly stealthy and cryptographically secure inner SNI
 
-[ ] since the server does not have to publish a public key (as in ECH), it is possible to hide the fact that the server is support SECH from all except the client who knows the OOB secret
+\input{section/design-sech-2}
 
-[ ] the secret could be shared amongst multiple clients, allowing for some scale of deployment, but this protocol is certainly not appropriate for internet scale deployments (millions of clients). The more widely the secret is shared the more likely it is to be leaked.
-
-[ ] This design is NOT forward secret. If the shared secret is compromised then 
-
-\subsection{Design}
-
-[ ] assume the client and server have some way to securely share a secret out-of-band
-
-[ ] client uses that secret to encrypt the true target servername as well as a 32 byte secret inner nonce which are hidden in the ClientHello \var{random} and the \var{pre\_shared\_key} extension. The inclusion of the secret inner nonce is necessary to mitigate cut-and-paste attacks.
-
-[ ] The client generates a 12 byte initialisation vector for AES-128-GCM. The plaintext is an ASCII encoding of the servername padded with 0x00 up to 12 bytes, which is also 12 bytes when encrypted.
-AEAD is used but the AAD is 0-length. % TODO: might be better to use the transcript hash of ClientHello (with random zeroed) as AAD, (however, if random is zeroed then transcript hash might not change)
-The tag is truncated to 8 bytes, such that we have a combined 32 bytes to send, which is put into the ClientHello.random, the first 12 bytes contain the IV, the next 12 contain the encrypted text, and the last 8 bytes contain the truncated MAC.
-
-[ ] If the server can decrypt and authenticate the ClientHello.random, then it proceeds to accept SECH, and makes the SECH inner servername available to the application program via a callback or some other means, which allows the application program to decide whether or not to switch contexts (server certificate etc.).
-
-%[ ] The server uses the 32 byte shared secret key as well as the decrypted inner servername to create an 8 byte acceptance signal which is hidden in the ServerHello.random. The 8 byte acceptance signal is computed as \var{sech\_accept\_confirmation = AEAD-encrypt(IV, plaintext="", aad=sech\_inner\_servername, accept\_key).tag}, where IV is the first 12 bytes of the ServerHello.random (uniformly randomly generated), the plaintext is zero-length, the AAD is precisely the inner servername (which does not need to be transmitted because it is known by the client), and \var{accept\_key} is a session-specific key derived using HKDF from the session's master secret and the transcript of ClientHello..ServerHello, but with the last 16 bytes of ServerHello.random set to 0x00. The last 8 bytes of \var{ServerHello.random} are possibly used for an ECH acceptance signal, and the ECH acceptance signal is computed based on the transcript of ClientHello..ServerHello, except with the last 8 bytes of of ServerHello.random set to 0x00. Therefore, if the server is sending an SECH acceptance signal *and* an ECH acceptance signal, the SECH acceptance signal is computed first because the ECH acceptance signal is defined to incorporate the SECH acceptance signal bytes in its transcript hash. To construct the 8 sech\_accept\_confirmation bytes we make use of the HKDF-Expand-Label function defined in RFC 8446 Section 7.1.
-    % ```c
-    % md = TranscriptHash(ClientHello..ServerHello) // with last 16 bytes of ServerHello.random set to 0x00
-    % padded\_sech\_IV = pad(sech\_IV, HashLen)
-    % sech\_accept\_confirmation = HKDF-Expand-Label(
-    %   HKDF-Extract(padded\_sech\_IV, sech\_symmetric\_key),
-    %   "sech ac" || 0x00 || sech\_decrypted\_inner\_servername,
-    %   md,
-    %   8
-    % )
-    % ```
-
-[ ] This definition of \var{sech\_accept\_confirmation} is essentially a modification of the ECH \var{accept\_confirmation} defined in Section 7.2 of [TODO cite ECH draft], which we repeat here:
-% ```
-%   accept\_confirmation = HKDF-Expand-Label(
-%     HKDF-Extract(0, ClientHelloInner.random),
-%     "ech accept confirmation",
-%     transcript\_ech\_conf,
-%     8
-%   )
-% ```
-
-The ECH \var{accept\_confirmation} uses \var{HKDF-Extract(0, ClientHelloInner.random)} as the `Secret' passed to \var{HKDF-Expand-Label}, and \var{HKDF-Extract(0,ClientHelloInner.random)} is confidential (only known to the client and server) because the \var{ClientHelloInner.random} was in the {\em encrypted} \var{ClientHelloInner}. Also, it is essential that \var{accept\_confirmation} can be generated by the backend server in ECH split mode, which is why the salt passed to \var{HKDF-Extract} is the 0 string. While it would be more secure to use a session-specific random value as the salt for \var{HKDF-Extract}, we cannot use the \var{ClientHelloOuter.random} because this value is not available to the backend server (the backend server only processes the ClientHelloInner). The HKDF specification assumes that the salt and IKM passed to HKDF-Extract are indepedent of each other (Section 3.4 RFC 5869), and in particular that the salt values are not `chosen or manipulated by an attacker'.
-Since \var{ClientHelloOuter.random} is never processed by the backend server it will not be incorporated into the \var{Finished} message, which means it is not protected from tampering in split-mode. This means an attacker could manipulate \var{ClientHelloOuter.random} and so it should not be used as the salt for \var{HKDF-Extract}.
-
-[ ] In order to facilitate a split mode of operation in a similar fashion to ECH it must be possible for the SECH backend server to produce  the \var{sech\_accept\_confirmation} signal. For the signal described above this entails that the backend server must possess the \var{sech\_symmetric\_key}, meaning \var{sech\_symmetric\_key} would be shared amongst three parties; client, client-facing server, backend server. This violates one of the design requirements listed in Section 3.2 by \cite{rfc8744-issues}; Avoid Widely Shared Secrets.
-% \subsection{Security Considerations}
-
-[ ] High probability for situations where an attacker can guess the plaintext, or where there are only a small number of possible plaintexts (SNIs). How does this affect capacity to brute force the secret key? -> Does this mean the SNIs must also remain secret?
-
-\subsection{Implementation Notes}
-    - Testing
 \section{SECH 3}
 \subsection{Motivations and Deployment Scenarios}
 \subsection{Design}
@@ -100,10 +53,9 @@ Since \var{ClientHelloOuter.random} is never processed by the backend server it 
 \subsection{Motivations and Deployment Scenarios}
 \subsection{Design}
 \subsection{Implementation Notes}
-\section{SECH 5}
-\subsection{Motivations and Deployment Scenarios}
-\subsection{Design}
-\subsection{Implementation Notes}
+
+\input{section/design-sech-5}
+
 \section{SECH 6: TLS over TLS}
 \subsection{Motivations and Deployment Scenarios}
 \subsection{Design}

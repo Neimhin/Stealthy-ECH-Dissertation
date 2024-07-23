@@ -1,17 +1,38 @@
 \chapter{Technical Background}
 \section{Cryptographic Hash Functions}
 A hash function is a function that maps arbitrary length data to a fixed length representation. An example of a (completely useless) hash function is the function that maps all inputs to the 0x00 byte. Useful hash functions often approximate a uniform distribution over the possible outputs for different inputs. If a hash function has an output length of one byte (256 possible outputs), and we feed in random strings to the hash function, it is desirable (for many use cases) if each of the 256 possibilities are approximately equally represented in the outputs. Hash functions with this property are useful in designing efficient algorithms and data structures (e.g. hash tables). However, the uniform distribution of outputs is not a sufficient property for making the hash function a secure cryptographic hash function. It is possible that the output of such a hash function reveals some information about the input. Let's construct an example of a hash function whose output reveals information about the input, we interpret the input message as an unsigned integer (with an arbitrary number of bits) and take the modulo of this integer and the number of possible outputs. Therefore the messages "0x00", "0x01", "0x02", ..., "0xFF" are all mapped to themselves, so we get a perfect uniform distribution for all one-byte messages. In fact, any message is just mapped to the least significant byte of the message, and therefore, the hash output tells us deterministically what the last byte of the message was. For hash functions used in cryptographic algorithms this is not acceptable; we need hash function where the hash digest (output) reveals nothing about the input message. Our insecure last-byte hash function is fast to compute (it's O(1), just take the last byte), but it turns out that cryptographically secure hash algorithms are more compute intensive because they ought to digest the entire input message (they are at least O(N)). One might not want to use a cryptographic hash function for non-cryptographic tasks (efficient lookup, hash tables etc.) because they may be more compute-intensive than non-cryptographic alternatives.
+
+
 \section{AEAD}
+The Authenticated Encryption with Additional Data (AEAD) pattern for cryptographic interfaces was standardised in RFC 5116 \cite{rfc5116-aead} and now TLS 1.3 lists only AEAD algorithms for the symmetric encryption operations of the TLS 1.3 cipher suites. AEAD algorithms provide both data confidentiality and data integrity, and data integrity is provided for both the encrypted and the non-encrypted (additional) data.
 
-[ ] AEAD in a nutshell
+% [ ] summary, how many available AEAD algorithms, exclusively use AEAD in TLS 1.3
+As of writing the IANA lists 33 AEAD algorithms \cite{iana-aead}. An AEAD encryption operation takes as input a fixed-length symmetric key $k$, plain text data to be encrypted, additional data to be authenticated but not encrypted, and the AEAD nonce \nonce. The output is a cipher text comprising two parts, the encryption of the plain text as well as an authentication tag. Each algorithm comes with a specification of the key length, the minimum/maximum sizes for plaintext, additional data, authentication tag, and cipher text. For example, the AEAD algorithm with ID 1 is AES-128-GCM which takes a key of 128 bits (16 octets), a nonce of exactly 96 bits (12 octets), and produces an authentication tag of 128 bits (the maximum plain text, AAD, and cipher are very large).
 
-[ ] summary, how many available AEAD algorithms, exclusively use AEAD in TLS 1.3
+The AES-GCM family of algorithms work by producing a pseudorandom key stream based on the inputs \nonce and $k$. The security of the algorithm relies on this pseudorandom stream being a indistinguishable from a stream of i.i.d. bits from the uniform distribution. To encrypt the plain text $p$ a key stream $k_s$ with the same length as the plain text is produced, and the encrypted text $c$ is achieved by applying XOR to the respective bits of $p$ and $k_s$: $c=p\lxor k$.
 
-[ ] description of the AEAD interface, requirements (unique nonce) and gaurantees over the values
+% [ ] description of the AEAD interface, requirements (unique nonce) and gaurantees over the values
 
-[ ] Coordinating various devices using the same key requires some cleverness in nonce generation.
 
-[ ] Using the same (nonce, key) pair results in the same key stream which is a "cryptographic disaster" (to quote RFC 7714 Section 6). See explanation in Section 9.1 of RFC3711.
+% [ ] Coordinating various devices using the same key requires some cleverness in nonce generation.
+
+Using the same $(\nonce, k)$ pair results in the same key stream which, especially for AES-GCM, is a "cryptographic disaster" (to quote RFC 7714 Section 6). See explanation in Section 9.1 of RFC3711. (TODO expound)
+
+If we use a (pseudo)random function to generate each \nonce, then our probability of generating a \nonce which has already been used increases on each successive generation. The 96 bits of the AES-GCM \nonce entails that there are $2^96$ \nonce s, an astronomic number. The probability of the first pair of \nonce s being the same is $1/2^{96}$, an unfathomably tiny number, so it might seem that intuitively the probability of a \nonce collision should remain very small. However, this is not the case, and this mismatch between the common intuition and the probabilistic truth is demonstrated by the birthday paradox.
+
+\subsection{The Birthday Paradox}
+The birthday problem asks the question; how many people would you need to gather such that there is a probability greater than 50\% that at least two of the people share a birthday. Intuitively one might guess the answer to be something around $365/2$, but the true answer is just 23. The birthday paradox is not a proper paradox, but simply a reference to this potentially unexpected result.
+
+It turns out that after only about $3.3\times10^{14}$ 96 bit \nonce s the probability of a collision reaches 50\%. While this is still a large number, if a protocol used a widely shared secret key $k$, and there were many (say billions) of clients using the same key, there could be a scenario where birthday collisions become frequent enough to enable attacks on the system.
+
+[ ] \cite{aesgcm-security} attacker's advantage
+
+Reuse of a $(\nonce,k)$ pair with AES-GCM destroys the confidentiality of the messages protected by that $(\nonce, k)$ pair. But for AES-GCM the consequence of $(\nonce,k)$ reuse is even worse, it allows an attacker to compute an underlying value $H$, which is used in all operations with key $k$ (even with a different \nonce). Possession of $H$ allows an attacker to forge messages, i.e. create cipher texts with valid authentication tags \cite[Section 5]{aesgcm-security}.
+
+[ ] AES-GCM GHASH brittleness: using a (nonce,key) more than once allows an attacker to recover $H$ which means the attacker can forge messages forever (but does this mean the attacker can only forge when plaintext is empty?)
+
+\section{HPKE}
+The basic mechanism of ECH is to encrypt the \var{ECHClientHelloInner} with a randomly generated secret symmetric key, and then encrypt the symmetric key using the public key of the ECH server.
 
 \section{HKDF}
 

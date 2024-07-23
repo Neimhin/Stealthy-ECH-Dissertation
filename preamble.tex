@@ -116,11 +116,12 @@
 \usepackage{amsmath}
 \usepackage{natbib}
 \usepackage{caption}
-\usepackage{hyperref}
+\usepackage[hidelinks]{hyperref}
 \usepackage{listings}
 \usepackage{float}
 \usepackage{listings}
 \usepackage[newfloat]{minted}
+\usepackage[]{acronym}
 
 %%------------------------------------------------
 %% Listing macros
@@ -177,6 +178,6 @@
 \hyphenation{Client-Hello-Inner}
 %hyphenation{server-\_-handshake-\_-traffic-\_-secret}
 
-\newcommand{\shts}{server\-\_handshake\-\_traffic\-\_secret}
 
+\input{lib}
 \input{thesis}

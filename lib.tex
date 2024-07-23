@@ -1,0 +1,28 @@
+\usepackage{tikz}
+\usepackage{amsmath}
+
+\newcommand{\shts}{server\-\_handshake\-\_traffic\-\_secret}
+\newcommand{\paddedServername}{padded\-\_servername}
+\newcommand{\ClientHelloOuter}{Client\-Hello\-Outer}
+\newcommand{\nonce}{
+    \ifmmode
+        n_{\text{once}}
+    \else
+        $n_{\text{once}}$
+    \fi
+}
+
+\newcommand*\lxor{\oplus}
+
+\def\sechtwoivlen{12}
+\def\sechtwotaglen{16}
+\def\sechtwoservernamelen{36}
+\def\sechtworandomlen{0}
+\pgfmathsetmacro{\sechtwocipheroffset}{int(\sechtwoivlen)}
+\pgfmathsetmacro{\sechtwocipherlen}{int(\sechtwoservernamelen+\sechtworandomlen)}
+\pgfmathsetmacro{\sechtwocipherend}{int(\sechtwocipheroffset+\sechtwocipherlen)}
+\def\sechfiveenclen{32}
+\def\sechfivetaglen{16}
+\def\sechfiveservernamelen{8}
+\def\sechfiverandomlen{8}
+
