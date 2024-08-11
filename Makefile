@@ -1,9 +1,11 @@
-FIGURES :=  figure/ech-reject-and-hrr.pdf figure/ech-accept-and-hrr.pdf figure/ServerHello-struct.pdf figure/sech-split-mode-accept.pdf figure/pre_shared_key.pdf figure/sech2-cover.pdf figure/sech2-accept-function.pdf figure/sech2-transcript-hash.pdf figure/sech2-derive-secret.pdf figure/sech5-cover.pdf
+FIGURES :=  figure/ech-reject-and-hrr.pdf figure/ech-accept-and-hrr.pdf figure/ServerHello-struct.pdf figure/sech-split-mode-accept.pdf figure/pre_shared_key.pdf figure/sech2-cover.pdf figure/sech2-accept-function.pdf figure/sech2-transcript-hash.pdf figure/sech2-derive-secret.pdf figure/sech5-cover.pdf figure/birthday-paradox.pdf
 figures: $(FIGURES)
 clean:
 	-rm $(FIGURES)
 	-rm tmp/*
 
+figure/birthday-paradox.pdf: figure/birthday-paradox.py
+	python ./figure/birthday-paradox.py $@
 figure/sech5-cover.pdf: figure/sech5-cover.tex lib.tex
 	cd figure && pdflatex --output-directory ../tmp sech5-cover.tex && cp ../tmp/sech5-cover.pdf ./sech5-cover.pdf && rm ../tmp/sech5-cover.*
 

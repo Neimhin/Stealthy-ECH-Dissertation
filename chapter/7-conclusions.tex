@@ -4,6 +4,35 @@
 
 \section{Future Work}
 
+Our design of \ac{SECH} 2 specifies only \ac{AES}-128-\ac{GCM} as the \ac{AEAD} cipher for servername encryption, since
+it is specified that a \ac{TLS}-compliant
+server must implement this cipher.
+Since the ciphertext is sent in the first flight before any negotiation takes place this simplifies the design.
+The design could be extended to allow other ciphers,
+as well as connection-specific negotiation of the servername encryption cipher.
+For example, the \ac{AEAD} cipher could be negotiated as the preferred cipher in the 
+\var{cipher\_suites} list.
+
+Our design of \ac{SECH} 2 uses a 24 byte inner random and 12 byte inner payload.
+There are several avenues we could explore in order to expand the available bandwidth for the inner payload (the \ac{SNI} and \ac{ALPN}).
+For one, rather than transmitting the 24 byte inner random the inner random could be derived from the shared secret.
+For split-mode, this derived inner random would need to be embedded in the \ac{CHI}.
+Since the \ac{AEAD} \nonce is not needed by the backend server we could put part of the inner random in the first 12 bytes of the \ac{CHI}'s \var{random}.
+More of the inner random could go in the \ac{SNI} extension data field, rather than transmitting a string of 0s, and finally,
+the backend server does not need the \ac{AEAD} \ac{MAC}, so these 16 bytes could be used for the inner random.
+With these changes we can increase the size of both the inner random {\em and} the \ac{SECH} payload.
+
+For our design of \ac{SECH} 2 we abandoned the goal of offering
+split mode in order to include a mitigation
+against a \ac{HRR} hijacking attack that could break \ac{PC}.
+We have not ruled out the possibility of both mitigating the
+\ac{HRR} hijacking attack {\em and} offering split-mode.
+This problem is a direction for future research.
+
+More ambitiously, however, it would be ideal to find
+a mitigation against the \ac{HRR} hijacking problem that
+does not involve excessive cover messages and bandwidth.
+
 % This chapter should summarize the work presented in the dissertation and discuss the conclusions that can be drawn from the work and the results presented in chapter~\ref{chap:Evaluation}.
 
 

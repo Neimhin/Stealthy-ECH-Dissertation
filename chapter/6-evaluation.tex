@@ -4,12 +4,76 @@
 \section{General Security and Privacy Considerations for SECH}
 
 \subsection{Protocol Confidentiality}
-As mentioned in Section~\ref{bleichenbacher-attack} any good \ac{SECH} protocol should protect the confidentiality of the fact that \ac{SECH} is being attempted and the fact that \ac{SECH} is supported. There are aspects of the protocol design that will protect this information, for instance how the connection continues with regular \ac{TLS} 1.3 whenever \ac{SECH} is aborted.
+As mentioned in Section~\ref{bleichenbacher-attack} any good \ac{SECH} protocol should protect the confidentiality of the fact that \ac{SECH} is being attempted and the fact that \ac{SECH} is supported, which we'll call \ac{PC}.
+There are two levels of \ac{PC};
+connection-level \ac{PC},
+and channel-level protocol condifentiality.
+With connection-level \ac{PC} an attacker
+cannot determine whether a particular connection uses \ac{SECH},
+although the attacker may be able to determine that the
+client/server pair participating in the connection are
+capable of using \ac{SECH}.
+With channel-level \ac{PC} the attacker
+is neither able to determine whether a particular
+connection uses \ac{SECH},
+nor whether the client/server pair are capable of \ac{SECH}.
+
+The proposed \ac{SECH} 1 protocol provides neither level of
+\ac{PC}. With \ac{SECH} 2 we have aimed
+to provide connection-level \ac{PC} in all cases,
+and channel-level \ac{PC} for some types of deployment (i.e. where the the \ac{SECH} 2 capability is 
+never advertised publicly).
+
+We also aspired to make both levels of \ac{PC} possible
+with the \ac{HPKE} based \ac{SECH} 5, however
+we imagine the main benefit of the \ac{HPKE}-variant
+is that the capability can be advertised and distributed
+on the \ac{DNS}, in which channel-level \ac{PC} is forfeited.
+
+In a situation where a user is attempting to circumvent censorship it could be that the censor will respond harshly or violently to detected circumvention attempts.
+The risk of \ac{PC} being broken may be
+very severe, so reader's should note that the protocols
+presented in this dissertation have had nowhere near
+the same level of analysis or attention as regular \ac{TLS} or \ac{ECH},
+and it should be assumed that the design and implementation
+have as yet undiscovered vulnerabilities.
+
+There are aspects of the protocol design that will protect this information, for instance how the connection continues with regular \ac{TLS} 1.3 whenever \ac{SECH} is aborted.
 However, ensuring the confidentiality of this information depends also on
 a careful and secure information. For instance, it may be possible for an attacker to somehow with high likelihood guess the library/implementation used for a particular channel. With this information the attacker could then analyse the timing of messages, or the particular alert messages under various circumstances to gain information about whether \ac{SECH} is in use.
-The recurring discovery of \ref{bleichenbacher-attack}-style attacks are an attestation to the difficulty of implementing protocols that do not reveal such secret information.
+The recurring discovery of Bleichenbacher-style attacks \citep{ronen2019ninelivesbleichenbacher} are an attestation to the difficulty of implementing protocols that do not reveal such secret information.
 
-To make matters worse, unlike \ac{RSA} private messages/keys which consist of many bits, the fact of a protocol being used/supported can be represented by a single bit, so protocol confidentiality is broken if an attacker can attain this single bit, meaning a successful attack will likely require much fewer oracle accesses than is the case for \ref{bleichenbacher-attack}. It should not be taken for granted that any given implementation of \ac{SECH} sufficiently protects protocol confidentiality.
+To make matters worse, unlike \ac{RSA} private messages/keys which consist of many bits, the fact of a protocol being used/supported can be represented by a single bit, so \ac{PC} is broken if an attacker can attain this single bit, meaning a successful attack against a vulnerable system would likely require much fewer oracle accesses than is the case for the attack described by \cite{bleichenbacher1998chosen}. It should not be taken for granted that any given implementation of \ac{SECH} sufficiently protects \ac{PC}.
+
+\subsection{Non-random \var{random} fields}
+The design approach adopted in this work involves
+using ciphertext in place of all or part of the 
+\var{random} field, whose value in \ac{TLS} is
+supposed be securely randomly generated.
+
+In the case of \ac{SECH} 2 the first 12 bytes of the \var{random}
+are still random, but the remainder consists of
+ciphertext, which is produced as a function of the session key,
+the \nonce, the cleartext and the context.
+We assume in this work that the total entropy of these
+four inputs is greater than that of a 32 octet random string,
+and also that the encryption algorithm does a good job of
+concentrating that entropy into the ciphertext such that the
+combined \var{random} and \varlegacysessionid{} fields contain
+greater than 32 bytes of entropy.
+A good direction for research into attacks against the \ac{SECH} 2
+protocol would debunk these assumptions.
+
+Another possible angle for attack would be to leverage
+the relationship between the the \var{random} and its
+surrounding context.
+This relationship does not exist in \ac{TLS} 1.3
+since the \var{random} is generated independently of its context.
+It could turn out that the relationship exposes \ac{SECH}
+to a new vulnerability, not only to break \ac{PC}
+but also the standard guarantees of \ac{TLS} 1.3.
+As yet we have not discovered a vulnerability exploiting this
+relationship.
 
 % The Evaluation chapter should present a comparison of the work that forms the basis of the dissertation and existing work. At a higher level, it should demonstrate an awareness of the relationship of the dissertation work to the research area that it is based in.
 

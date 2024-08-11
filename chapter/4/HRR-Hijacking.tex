@@ -1,0 +1,102 @@
+\subsection{\var{HelloRetryRequest} Hijacking}
+\label{sec:hrr-hijacking}
+If a client sends \var{key\_share}s for cipher suites the server does not support the
+server will issue a \ac{HRR} listing supported cipher suites to which the
+client responds with a \ac{CH2} and a new \var{key\_share} for one of the supported cipher suites.
+The \ac{HRR} hijacking attack involves an attacker constructing a malicious \ac{CH2}
+such that the server later encrypts the \ac{tlsC} to the attacker, revealing the inner \ac{SNI}.
+
+More fully, the flow would go as follows: a client sends a legitimate \ac{CHO}, the server successfully
+decrypts and accepts the inner servername but replies with
+a legitimate \ac{HRR},
+an attacker intercepts the \ac{HRR} and constructs
+a malicious \ac{CH2} with an attacker-controlled \var{key\_share}
+while also constructing
+a new \varech{} extension.
+The server completes the handshake with the attacker,
+but using the inner servername
+from the first legitimate \ac{CHO}.
+
+The mitigation for this described in the \ac{ECH} draft is to use the same encryption context for the first and second \ac{CH}s.
+That is to say the encapsulated symmetric key \var{enc} is sent only in the first \ac{CHO}
+and reused in order to encrypt/decrypt the second \varech{}.
+If \ac{ECH} decryption fails for the second \ac{CHO}
+then the server aborts.
+This prevents forgery of the second \ac{CHO}.
+
+For our approach to \ac{SECH} we cannot copy the \ac{ECH} mitigation.
+The first \ac{SECH} payload is hidden in the cover of the \ac{CH}\var{.random}
+and \varlegacysessionid{}.
+In \ac{TLS} 1.3, however, these fields are repeated identically in the \ac{CH2},
+which means we cannot re-do the \ac{SECH} payload encryption for \var{ClientHello2}.
+The fields in which we might have placed the repeated \ac{SECH} payload encryption
+cannot be changed compared the first \ac{CH}, or else
+the handshake will stick out.
+
+For an earlier draft of this dissertation we proposed an \ac{SECH} protocol that was vulnerable to this type of attack.
+In that variant the \ac{SECH} synthetic transcript contained
+no secret inner random.
+This meant if the
+server accepted the inner servername and sent a \ac{HRR}, then an attacker would be able to intercept
+the \ac{HRR} and respond with an attacker-controlled \ac{CH2}.
+In this vulnerable design the server did
+not try to decrypt the \ac{SECH} payload from the second \ac{CH},
+but rather carried over the inner \ac{SECH} parameters decrypted from the first \ac{CH}.
+The attacker controlled \ac{CH2}
+would be processed by the client-facing server and forwarded to the secret backend server.
+The handshake keys would be derived from the synthetic inner transcript.
+Once the attacker receive the \var{Certificate} message
+it could repeatedly try to generate the correct handshake keys
+by guessing different possible
+transcripts of \ac{CHI}.
+Since the synthetic inner transcript did not contain an inner random
+the attacker could guess correctly with reasonable probability
+and thus eventually decrypt the \var{Certificate} message to learn the inner \ac{SNI}.
+
+We can gain some protection
+against this attack
+by the incorporation on an inner random which prevents the attacker
+from guessing the transcript.
+However, this mitigation is not as strong as that of the \ac{ECH} approach.
+The \ac{ECH} approach provides defense in depth since the attack is mitigated
+by the shared \ac{HPKE} context of the two \ac{CH}s {\em as well as}
+the inner random.
+% It is possible that a more thorough cryptographic analysis will reveal
+% the inner random to provide insufficient protection against this attack.
+
+In particular, the \ac{ECH} design prevents the server from ever sending the encrypted
+\ac{tlsC} message unless the \ac{CH2} is legitimate.
+Relying only on the inner random does not prevent this,
+and once the \ac{tlsC} has been sent the remainder of the
+attack can be performed offline.
+Also, the \var{HRR} hijack means that the secret established
+by (\ac{EC})\ac{DHE} is known to the attacker, so the
+only thing protecting the handshake traffic secrets
+is the secret inner random in the synthetic transcript.
+The transcript in the \ac{TLS} 1.3 key schedule is not designed
+to provide this type of protection, rather it is designed
+to prevent transcript malleability.
+% Protection of 
+
+Irritatingly, in order not to stick out from \ac{TLS} 1.3
+we need to design the \ac{SECH} protocol such that an attacker
+can perform \var{HRR} hijacking  in the same way
+they would be able to for \ac{TLS} 1.3.
+This means that if an attacker intercepts the \var{HRR}
+and injects an attacker-controlled \ac{CH2},
+then the server should respond with a regular \ac{TLS} 1.3
+\ac{SH} and \ac{tlsEE}.
+If instead we used the \ac{CHI} as the transcript
+in the key schedule,
+then the attacker would
+fail to decrypt \ac{tlsEE} which would
+reveal to the attacker that non-standard \ac{TLS} was in use.
+For this reason it turns out that triggering a \var{HRR}
+while running \ac{SECH} is fatal.
+If a server needs to reply with a \var{HRR} then the only
+stealthy solution (we have found)
+is to give up on completing a connection
+to the backend server, and instead complete
+the connection with the host identified by the outer \ac{SNI}.
+This way, if the connection is hijacked by an attacker
+the attacker will not learn any secret values of the \ac{CHI}, nor break \ac{PC}.

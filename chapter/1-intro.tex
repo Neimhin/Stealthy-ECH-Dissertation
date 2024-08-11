@@ -1,33 +1,132 @@
 \chapter{Introduction}
 
-[ ] design, implement, test privacy enhancements and censorship resistance improvements to TLS
 
-[ ] pervasive monitoring and censorship harmful to internet users
+In this dissertation we propose designs
+for variants of \ac{SECH} extensions
+to the \ac{TLS} 1.3 protocol,
+with the goal of offering enhanced
+privacy compared to regular \ac{TLS} 1.3.
+We report on the development
+of implementations and tests of the proposed protocols
+in a fork of the OpenSSL library,
+and we provide cursory analyses and arguments
+attesting to the security of the
+proposed protocols.
 
-[ ] many examples of aggressive state-sponsored internet censorship by various means
+The \ac{TLS} 1.3 protocol enables secure connections between
+a client and server over an insecure medium such as the internet.
+In particular \ac{TLS} aims to provide confidentiality of messages
+and authentication of the communicating parties (either server-only authentication
+or mutual authentication). One of the most popular applications of \ac{TLS} is
+in the \ac{HTTPS} protocol, but \ac{TLS} has many use-cases beyond \ac{HTTPS}.
 
-[ ] often the case that states willing to aggressively censor are also willing to employ violence and other forms of coersion to achieve their goals
+\cite{rfc7258-pervasive-monitoring} declared that \ac{PM} is a ``widespread attack on privacy'', and
+that ``the \ac{IETF} will work to mitigate \ac{PM}''.
+The \ac{TLS} protocol is very often
+deployed in a way that is vulnerable
+to \ac{PM}, in particular due to
+information leaked in the cleartext \ac{SNI} and
+\ac{ALPN} extensions.
+Also, the \ac{SNI} is a well-known factor used
+by censors to discriminate connections to be blocked. The \ac{ALPN} also has the potential
+to be abused by censors.
 
-[ ] even when censorship is not present argue that pervasive monitoring/lack of privacy are bad for individuals and society
+Both \ac{PM} and censorship are harmful to Internet users.
 
-[ ] acknowledge that privacy is often violated in pursuit of seemingly noble goals: counter-terrorism, criminal investigations
+Many cases of aggressive state-sponsored Internet censorship exist and persist today.
+It is sometimes also the case that states willing to aggressively censor are also willing to employ violence and other forms of coercion to achieve their goals.
 
-[ ] slippery slope from counter-terrorism to plain-old spying for illegitimate purposes (political sway, propaganda, commerce etc.)
+% [ ] even when censorship is not present argue that pervasive monitoring/lack of privacy are bad for individuals and society
 
-[ ] this work primarily an investigation of a technical method of privacy enhancement and censorship circumvention
+% [ ] acknowledge that privacy is often violated in pursuit of seemingly noble goals: counter-terrorism, criminal investigations
 
-\section{ECH}
-[ ] the ECH extension to TLS looks promising as a privacy enhancement but entails a risk of splintering the internet because of how much it 'sticks out'
+% [ ] slippery slope from counter-terrorism to plain-old spying for illegitimate purposes (political sway, propaganda, commerce etc.)
 
-[ ] short summary of properties/goals of ECH, don't stick out, anonymity sets, extensibilty, GREASE
+This work is an investigation of a technical method
+intended to mitigate or prevent \ac{PM} and censorship
+based the \ac{SNI} and \ac{ALPN}.
 
-[ ] censors might try to avoid 'over-blocking' (encourage economic activity, passify netizens), but on the other hand censors might purposefully over-block in order to disincentivize the deployment of new (privacy enhanced/censorship resistant) protocols
+% \section{ECH}
+The \ac{ECH} extension to \ac{TLS}, under development
+by \cite{esni},
+is a promising proposal
+intended to provide greater privacy for \ac{TLS} users.
+However, \ac{ECH} falls short in one of its
+design goals: ``Don't stick out''.
 
-[ ] On the global stage privacy enhancement and censorship resistance are sides of one coin, not appropriate to consider them separate from each other. Worse privacy entails increased capacity to censor.
+While the \ac{ECH} proposal provides a mechanism
+by which it may in future achieve its goal
+of not sticking out (namely the use of the \ac{GREASE} pattern for \ac{ECH}),
+it will take time to see if that mechanism
+will be deployed to the extent where it becomes effective.
+Also, \ac{ECH} is designed in such a way that it
+is trivial for an on-path network observer to
+detect that either \ac{ECH} or \ac{GREASE} \ac{ECH}
+is being used.
+This means that it is equally trivial for a powerful
+censore to block deployments of either \ac{ECH} or \ac{GREASE} \ac{ECH}.
 
-[ ] privacy is a bulwark against future censorship
+There is a risk that a widespread deployment of \ac{ECH} will trigger powerful censors to block
+all \ac{ECH} connections, resulting in some
+degree of splintering of the Internet.
 
-\section{Motivations for a stealthy variant of ECH}
+% [ ] the ECH extension to TLS looks promising as a privacy enhancement but entails a risk of splintering the internet because of how much it 'sticks out'
+
+The basic idea behind \ac{ECH} is to use \ac{HPKE} to encrypt a so-called \ac{CHI},
+with the ciphertext of the \ac{CHI} in a \ac{TLS} extension.
+Encrypting with a public key, which can be distributed to the client before the \ac{ECH} handshake is initiated,
+means that the secret inner \ac{SNI} and \ac{ALPN} values can be sent in the client's
+first flight of messages, whereas the first encrypted messages in a normal \ac{TLS} 1.3 handshake
+are sent by the server (i.e. the second flight of messages).
+\cite{rfc8744-issues} laid out the \ac{IETF}'s core issues and requirements relating to the
+objective of servername encryption,
+and the \ac{ECH} protocol appears to achieve most of those goals,
+but deprioritises others.
+
+The privacy-benefit offered by \ac{ECH} is relative to a so-called anonymity set.
+A surveiller that observes an \ac{ECH} connection is able to narrow down the possible
+values of the inner \ac{SNI} to that anonymity set, but no further.
+Therefore, the greater the size of the anonymity set
+the greater the privacy-benefit for the user.
+If a censor wishes to block access to a particular website \var{banned.com},
+but that website is protected under \ac{ECH} relative to an anonymity set,
+then the censor is forced to over-block the entire anonymity,
+or not block \var{banned.com} at all.
+
+One of the assumptions that steered the design of \ac{ECH} is that
+censors will try to avoid over-blocking for various reasons,
+in order to avoid harm to economic activity and growth,
+or to avoid social unrest etc., and that the incentive
+to avoid over-blocking will be stronger than the incentive block in enough cases.
+
+On the other hand censors might purposefully over-block in order to disincentivise the deployment of new (privacy enhanced/censorship resistant) protocols.
+The design of \ac{ECH} unfortunately leaves the ball in the censor's court;
+will they over-block or won't they?
+
+On the global stage privacy enhancement and censorship resistance are sides of one coin,
+and we proceed under the tenet that is not appropriate to consider them separately from each other.
+Lesser privacy entails an increased capacity to censor.
+
+% \section{Motivations for a stealthy variant of ECH}
+
+One of the motivations for designing a \ac{SECH} protocol is to
+offer what we will call \ac{PC},
+which is when a surveillance system cannot distinguish whether or not
+a particular protocol is in use.
+In other words we treat the act of using a protocol itself as privacy-sensitive
+and aim to design a technical solution that can offer \ac{PC}.
+
+The goal then, is to design a version of \ac{ECH} that from
+the perspective of a surveillance system or active attacker is indistinguishable
+from regular \ac{TLS} 1.3.
+The basic mechanism we will leverage to achieve this centres around
+the fact that (strongly) encrypted data is indistinguishable from
+a string of uniformly random bits from the perspective of someone
+who does not possess the decryption key.
+Additionally, there are several fields in the \ac{TLS}
+messages consisting of uniformly random bit strings or pseudo-random strings.
+By replacing these (pseudo)random fields with encrypted data we can send
+stealthy signals without an observer being able to tell whether the signal was sent or not.
 
 % Introduction to the material covered in the document.
 

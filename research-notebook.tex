@@ -1,0 +1,109 @@
+\subsubsection{How ECH mitigates cut-and-paste attacks}
+Here we examine the mechanism used in the current draft of ECH to mitigate cut-and-paste attacks. A cut-and-paste attack against a servername encryption protocol could be used by an attacker to unveil the intended backend server of a connection as described in Section 3.1 of \cite{rfc8744-issues}. The following description of how a cut-and-paste attack could leak a cut-and-paste attack is after \cite{rfc8744-issues}.
+\begin{enumerate}
+    \item A benign client sends a ClientHello with an encrypted SNI included.
+    \item An attacker copies the encrypted SNI into a new ClientHello.
+    \item The client-facing/backend servers have no mitigation against the replay of the encrypted SNI and establish a connection between the attacker and backend server.
+    \item To conclude the handshake the backend server sends \var{Certificate} and \var{CertificateVerify} messages, revealing the identity of the backend server that the benign client intended to reach. 
+\end{enumerate}
+\cite{esni} note in Section 10.10.1 that a cut-and-paste attack is not possible against ECH because a server either processes a \var{ClientHelloOuter} or \var{ClientHelloInner} and \var{ClientHelloInner.random} is encrypted. Since \var{ClientHelloInner.random} is encrypted using a public key from an ECHConfig, only the client (who encrypted it) and the possessor of the corresponding private key can view \var{ClientHelloInner.random}. Therefore, if a malicious client tries to replay an \var{encrypted\_client\_hello} extension, it will contain a \var{ClientHelloInner.random} value that has already been used.
+
+To understand why ECH doesn't leak the inner SNI in the case of a cut-and-paste attack, let's look at how the attack would play out:
+\begin{enumerate}
+    \item A client sends a \var{ClientHelloOuter} with an encrypted \var{ClientHelloInner}.
+    \item Attacker cuts and pastes the entire ClientHelloOuter (cannot cut-and-paste just the \var{encrypted\_client\_hello} extension because the encrypted payload is cryptographically bound to the ClientHelloOuter).
+    \item The client-facing server successfully decrypts the replayed \var{encrypted\_client\_hello} payload and forwards ClientHelloInner to the backend server. (A sophisticated backend server could reject the repeated ClientHelloInner.random, but that is not sufficient to stop the attack [1]).
+    \item The backend server accepts ECH (but the attacker cannot verify acceptance because it doesn't have the plain-text ClientHelloInner necessary for \var{transcript\_ech\_conf}, which is in turn necessary for \var{accept\_confirmation}).
+    \item Backend server sends \var{ServerHello}, \var{\{Certificate\}}, \var{\{CertificateVerify\}}.
+    \item However, {Certificate} is protected with \var{\shts} which can only be derived if the full ClientHelloInner is known. While much of \var{ClientHelloInner} could be guessed by an attacker with reasonable probability, the \var{ClientHelloInner.\-random} can only be guessed with probability $1/2^{256}$ (32 octets). Also, the \var{\shts} is derived from the (EC)DHE handshake, but whether using a \var{key\_share} or a PSK the attacker cannot complete the DH exchange because it doesn't know the private values associated with \var{key\_share}, nor the \var{key\_share} which is encrypted in the \var{ClientHelloInner} (same for PSK).
+\end{enumerate}
+
+
+In summary, an attacker can trigger a backend server to send an encrypted {Certificate}, but cannot decrypt the {Certificate}.
+\section{ The Diffie-Hellman Key Exchange }
+The \ac{DH} key exchange protocol allows two parties, Alice and Bob, to establish a secret shared key
+while communicating over an insecure channel \cite{diffie-hellman-1976}.
+Variants and evolutions of the \ac{DH} key exchange protocol
+are fundamental to how \ac{TLS} works.
+
+The original \ac{DH} key exchange was based on the
+`apparent difficulty of computing logarithms over a finite field $GF(q)$ with a prime number $q$ of elements' \cite[p. 8]{diffie-hellman-1976}.
+A finite field (a.k.a. Galoid field), has a finite number of elements on which addition and multiplication are defined such that an additive inverse exists for all
+elements and a multiplicative inverse exists for every nonzero element.
+The integers with modular arithmetic mod a prime number give us a finite field.
+
+The \ac{DH} key exchange on finite field $GF(q)$ works as follows.
+Alice and Bob each generate a secret independent random number $X_a$ and $X_b$ chosen uniformly from ${1,2,\dots,q-1}$.
+Alice and Bob agree on a public value $g$, and compute another public value $Y_i=g^{X_i}\mod q$.
+Alice acquires $Y_b$ from Bob over an insecure channel, and vice versa.
+% The original \ac{DH} description does not specify how Bob authenticates ownership of $Y_b$.
+Alice and Bobs' shared secret is defined as $K_{ab}=g^{X_aX_b}\mod q$.
+Alice computes this as $Y_b^{X_a}\mod q$ which is equivalent to $Y_a^{X_b}\mod q$.
+Thus, Alice and Bob now each posses the shared secret $K_{ab}$.
+
+When attacking \ac{DH} passively we observe $g$, $q$, $Y_a$, and $Y_b$.
+We know that $Y_a=g^{X_a}\mod q$, and therefore that
+\begin{equation}
+$X_a=\log_g Y_a \mod q$
+\end{equation}
+
+\section{ Key Exchange Modes }
+There are three key exchange modes defined in RFC 8446:
+- (EC)DHE
+- PSK-only a.k.a. \var{psk\_ke}
+- and PSK with (EC)DHE a.k.a. \var{psk\_dhe\_ke}
+
+(EC)DHE is the default key exchange mode. PSK-based key exchanges can be offered by the client
+in the \var{psk\_key\_exchange\_modes} extension in the \var{ClientHello}.
+
+When establishing PSKs via the \var{NewSessionTicket} message the PSK is computed as:
+\var{HKDF-Expand-Label(resumption\_master\_secret, "resumption", ticket\_nonce, Hash.length).
+
+Similarly we can define a PSK that is valid for resuming under an SECH protected servername as:
+\var{HKDF-Expand-Label(resumption\_master\_secret, "sech res", sech\_ticket\_nonce, Hash.length).
+
+In PSK-only mode the server does not sends neither Certificate the CertificateVerify message,
+server authentication is implied by the PSK which is assumed to have been shared securely between
+the client and server.
+Note, however, that the lack of the ephemeral key sharing in PSK-only mode means that PSK-only does
+not provide forward secrecy, i.e. if the PSK is compromised then all connections established using PSK-only and
+that PSK lose confidentiality.
+
+A PSK can be used to bootstrap SECH, i.e. to allow a client to connect to a backend SECH server,
+because the PSK's identity can be bound either directly or indirectly to the backend servername.
+If the PSK is an externally shared PSK then it would be bound directly to the backend servername,
+and if the PSK identity was derived in a previous handshake then it is bound to that previous handshake
+and implicitly to the inner servername of that handshake.
+
+\section{ Qs }
+What's the simplest design of a shared-mode ticket system for SECH that will allow for bootstrapping access?
+- client offers SECH
+- server accepts SECH and sends NewSessionTicket
+- ticket (PSK identity) is cryptographically bound to the session and the inner servername
+- on new handshake client sends PSK identity and binder
+- server responds with an SECH accept_confirmation and inner servername's Certificate if using (EC)DHE
+
+\section{ Finding Cover }
+\subsection{ padding extension }
+The padding extensions \var{extension\_data} field `consists of an arbitrary number of zero bytes'.
+This padding could be used as cover for SECH by using the length of the \var{extension\_data} as a piece
+of data itself. Say we use padding as cover for some bits and set the maximum padding size to 15, then
+the size of the padding encodes 4 bits of data:
+0  -> 0000
+1  -> 0001
+2  -> 0010
+3  -> 0011
+...
+15 -> 1111
+
+The tradeoff between transmission size and stealthy bits is terrible here,
+a padding extension of size 16 takes up 20 bytes (160 bits),
+counting in the extension header, but offers only 4 covert bits.
+Even worse, the total covert bits scales logarithmically with the maximum padding size.
+
+The padding extension was introduced to solve issues with buggy implementations, and using
+the padding extension for covert bits would require some engineering to ensure that the extension
+could fulfill its original purpose.
+Also, if the padding extension is used to encode covert bits (which may for instance be part of a cipher text),
+then these covert bits will look uniformly random when tracked across sessions, which an attacker
+could detect, thus compromising stealth.

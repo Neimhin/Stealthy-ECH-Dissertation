@@ -12,13 +12,20 @@
     \fi
 }
 \newcommand{\premastersecret}{\var{pre\-\_master\-\_secret}}
+\newcommand{\varech}{\var{encrypted\-\_client\-\_hello}}
+\newcommand{\varechouterextensions}{\var{ech\-\_outer\-\_extensions}}
+\newcommand{\varsechinnerrandom}{\var{sech\-\_inner\-\_random}}
+\newcommand{\varlegacysessionid}{\var{legacy\-\_session\-\_id}}
+\newcommand{\varsechlongtermkey}{\var{sech2\-\_long\-\_term\-\_key}}
+\newcommand{\varsechacceptconfirmation}{\var{sech\-\_accept\-\_confirmation}}
+\newcommand{\varsechtranscripthash}{\var{sech\-\_\-transcript\-\_hash}}
 
 \newcommand*\lxor{\oplus}
 
 \def\sechtwoivlen{12}
 \def\sechtwotaglen{16}
-\def\sechtwoservernamelen{36}
-\def\sechtworandomlen{0}
+\def\sechtwoservernamelen{12}
+\def\sechtworandomlen{24}
 \pgfmathsetmacro{\sechtwocipheroffset}{int(\sechtwoivlen)}
 \pgfmathsetmacro{\sechtwocipherlen}{int(\sechtwoservernamelen+\sechtworandomlen)}
 \pgfmathsetmacro{\sechtwocipherend}{int(\sechtwocipheroffset+\sechtwocipherlen)}

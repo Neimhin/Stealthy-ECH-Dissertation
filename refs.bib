@@ -69,6 +69,14 @@
     abstract =  {This document specifies version 1.3 of the Transport Layer Security (TLS) protocol. TLS allows client/server applications to communicate over the Internet in a way that is designed to prevent eavesdropping, tampering, and message forgery. This document updates RFCs 5705 and 6066, and obsoletes RFCs 5077, 5246, and 6961. This document also specifies new requirements for TLS 1.2 implementations.},
 }
 
+@phdthesis{bhargavan2022handshake,
+  title={Handshake privacy for TLS 1.3-technical report},
+  author={Bhargavan, Karthikeyan and Cheval, Vincent and Wood, Christopher},
+  year={2022},
+  school={Inria Paris; Cloudflare},
+  note={hal-03594482}
+}
+
 @inproceedings{ech-analysis,
 author = {Bhargavan, Karthikeyan and Cheval, Vincent and Wood, Christopher},
 title = {A Symbolic Analysis of Privacy for TLS 1.3 with Encrypted Client Hello},
@@ -85,6 +93,27 @@ numpages = {15},
 keywords = {verification, tls, protocol security, privacy, formal analysis, ech},
 location = {Los Angeles, CA, USA},
 series = {CCS '22}
+}
+
+@book{mueller2008scarcity,
+  title={Scarcity in IP addresses: IPv4 address transfer markets and the regional internet address registries},
+  author={Mueller, Milton},
+  year={2008},
+  publisher={Internet Governance Project}
+}
+
+@inbook{diffie-hellman-1976,
+author = {Diffie, Whitfield and Hellman, Martin E.},
+title = {New Directions in Cryptography},
+year = {2022},
+isbn = {9781450398275},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+edition = {1},
+url = {https://doi.org/10.1145/3549993.3550007},
+booktitle = {Democratizing Cryptography: The Work of Whitfield Diffie and Martin Hellman},
+pages = {365–390},
+numpages = {26}
 }
 
 @misc{rfc8744-issues,
@@ -109,6 +138,121 @@ series = {CCS '22}
   month = {August 7},
   howpublished = {\url{https://geneva.cs.umd.edu/posts/china-censors-esni/esni/}},
   note = {Accessed: 2024-06-24}
+}
+
+@inproceedings{wu2023great,
+  title={How the Great Firewall of China detects and blocks fully encrypted traffic},
+  author={Wu, Mingshi and Sippe, Jackson and Sivakumar, Danesh and Burg, Jack and Anderson, Peter and Wang, Xiaokang and Bock, Kevin and Houmansadr, Amir and Levin, Dave and Wustrow, Eric},
+  booktitle={32nd USENIX Security Symposium (USENIX Security 23)},
+  pages={2653--2670},
+  year={2023}
+}
+
+@book{thomas2000ssl,
+  title={SSL andTLS essentials},
+  author={Thomas, Stephen},
+  year={2000},
+  publisher={New York, Wiley}
+}
+
+@inproceedings{bernstein2006curve25519,
+  title={Curve25519: new Diffie-Hellman speed records},
+  author={Bernstein, Daniel J},
+  booktitle={Public Key Cryptography-PKC 2006: 9th International Conference on Theory and Practice in Public-Key Cryptography, New York, NY, USA, April 24-26, 2006. Proceedings 9},
+  pages={207--228},
+  year={2006},
+  organization={Springer}
+}
+
+@misc{rfc5869hkdf,
+    series =    {Request for Comments},
+    number =    5869,
+    howpublished =  {RFC 5869},
+    publisher = {RFC Editor},
+    doi =       {10.17487/RFC5869},
+    url =       {https://www.rfc-editor.org/info/rfc5869},
+    author =    {Dr. Hugo Krawczyk and Pasi Eronen},
+    title =     {{HMAC-based Extract-and-Expand Key Derivation Function (HKDF)}},
+    pagetotal = 14,
+    year =      2010,
+    month =     may,
+    abstract =  {This document specifies a simple Hashed Message Authentication Code (HMAC)-based key derivation function (HKDF), which can be used as a building block in various protocols and applications. The key derivation function (KDF) is intended to support a wide range of applications and requirements, and is conservative in its use of cryptographic hash functions. This document is not an Internet Standards Track specification; it is published for informational purposes.},
+}
+
+@misc{rfc9180hpke,
+    series =    {Request for Comments},
+    number =    9180,
+    howpublished =  {RFC 9180},
+    publisher = {RFC Editor},
+    doi =       {10.17487/RFC9180},
+    url =       {https://www.rfc-editor.org/info/rfc9180},
+    author =    {Richard Barnes and Karthikeyan Bhargavan and Benjamin Lipp and Christopher A. Wood},
+    title =     {{Hybrid Public Key Encryption}},
+    pagetotal = 107,
+    year =      2022,
+    month =     feb,
+    abstract =  {This document describes a scheme for hybrid public key encryption (HPKE). This scheme provides a variant of public key encryption of arbitrary-sized plaintexts for a recipient public key. It also includes three authenticated variants, including one that authenticates possession of a pre-shared key and two optional ones that authenticate possession of a key encapsulation mechanism (KEM) private key. HPKE works for any combination of an asymmetric KEM, key derivation function (KDF), and authenticated encryption with additional data (AEAD) encryption function. Some authenticated variants may not be supported by all KEMs. We provide instantiations of the scheme using widely used and efficient primitives, such as Elliptic Curve Diffie-Hellman (ECDH) key agreement, HMAC-based key derivation function (HKDF), and SHA2. This document is a product of the Crypto Forum Research Group (CFRG) in the IRTF.},
+}
+
+@misc{rfc8890internet-is-for-end-users,
+    series =    {Request for Comments},
+    number =    8890,
+    howpublished =  {RFC 8890},
+    publisher = {RFC Editor},
+    doi =       {10.17487/RFC8890},
+    url =       {https://www.rfc-editor.org/info/rfc8890},
+    author =    {Mark Nottingham},
+    title =     {{The Internet is for End Users}},
+    pagetotal = 10,
+    year =      2020,
+    month =     aug,
+    abstract =  {This document explains why the IAB believes that, when there is a conflict between the interests of end users of the Internet and other parties, IETF decisions should favor end users. It also explores how the IETF can more effectively achieve this.},
+}
+
+@misc{cloudflare-ech-disabled,
+	author = {User \var{smarsh}},
+	title = {Early Hints and Encrypted Client Hello (ECH) are currently disabled globally},
+	howpublished = {\url{https://community.cloudflare.com/t/early-hints-and-encrypted-client-hello-ech-are-currently-disabled-globally/567730}},
+	year = {2023},
+	note = {[Accessed 09-08-2024]},
+}
+
+@article{van2013diginotar,
+  title={Diginotar: Dissecting the first dutch digital disaster},
+  author={Van der Meulen, Nicole},
+  journal={Journal of strategic security},
+  volume={6},
+  number={2},
+  pages={46--58},
+  year={2013},
+  publisher={JSTOR}
+}
+
+@misc{rfc7258-pervasive-monitoring,
+    series =    {Request for Comments},
+    number =    7258,
+    howpublished =  {RFC 7258},
+    publisher = {RFC Editor},
+    doi =       {10.17487/RFC7258},
+    url =       {https://www.rfc-editor.org/info/rfc7258},
+    author =    {Stephen Farrell and Hannes Tschofenig},
+    title =     {{Pervasive Monitoring Is an Attack}},
+    pagetotal = 6,
+    year =      2014,
+    month =     may,
+    abstract =  {Pervasive monitoring is a technical attack that should be mitigated in the design of IETF protocols, where possible.},
+}
+
+@INPROCEEDINGS{guan2021largescalemeasurementofesni,
+  author={Guan, Yangyang and Xia, Wei and Gou, Gaopeng and Fu, Peipei and Wang, Bingxu and Li, Zhen},
+  booktitle={2021 IEEE 23rd Int Conf on High Performance Computing \& Communications; 7th Int Conf on Data Science \& Systems; 19th Int Conf on Smart City; 7th Int Conf on Dependability in Sensor, Cloud \& Big Data Systems \& Application (HPCC/DSS/SmartCity/DependSys)}, 
+  title={Large-Scale Measurement of Encrypted TLS Server Name Indication (ESNI): How Far Have We Come?}, 
+  year={2021},
+  volume={},
+  number={},
+  pages={319-326},
+  keywords={Privacy;Cloud computing;Protocols;Current measurement;Virtual assistants;Companies;Standardization;Domain Name System;TLS 1.3;ESNI;active scanning;passive monitoring},
+  doi={10.1109/HPCC-DSS-SmartCity-DependSys53884.2021.00067}
 }
 
 @inproceedings{boeck2018robot,
@@ -258,4 +402,22 @@ month = aug
     year =      2023,
     month =     nov,
     abstract =  {This document describes technical mechanisms employed in network censorship that regimes around the world use for blocking or impairing Internet traffic. It aims to make designers, implementers, and users of Internet protocols aware of the properties exploited and mechanisms used for censoring end-user access to information. This document makes no suggestions on individual protocol considerations, and is purely informational, intended as a reference. This document is a product of the Privacy Enhancement and Assessment Research Group (PEARG) in the IRTF.},
+}
+
+@inproceedings{hoang-2020-assessing-privacy-benefits-sni-encryption,
+author = {Hoang, Nguyen Phong and Akhavan Niaki, Arian and Borisov, Nikita and Gill, Phillipa and Polychronakis, Michalis},
+title = {Assessing the Privacy Benefits of Domain Name Encryption},
+year = {2020},
+isbn = {9781450367509},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3320269.3384728},
+doi = {10.1145/3320269.3384728},
+abstract = {As Internet users have become more savvy about the potential for their Internet communication to be observed, the use of network traffic encryption technologies (e.g., HTTPS/TLS) is on the rise. However, even when encryption is enabled, users leak information about the domains they visit via DNS queries and via the Server Name Indication (SNI) extension of TLS. Two recent proposals to ameliorate this issue are DNS over HTTPS/TLS (DoH/DoT) and Encrypted SNI (ESNI).In this paper we aim to assess the privacy benefits of these proposals by considering the relationship between hostnames and IP addresses, the latter of which are still exposed. We perform DNS queries from nine vantage points around the globe to characterize this relationship. We quantify the privacy gain offered by ESNI for different hosting and CDN providers using two different metrics, the k -anonymity degree due to co-hosting and the dynamics of IP address changes. We find that 20\% of the domains studied will not gain any privacy benefit since they have a one-to-one mapping between their hostname and IP address. On the other hand, 30\% will gain a significant privacy benefit with a k value greater than 100, since these domains are co-hosted with more than 100 other domains. Domains whose visitors' privacy will meaningfully improve are far less popular, while for popular domains the benefit is not significant. Analyzing the dynamics of IP addresses of long-lived domains, we find that only 7.7\% of them change their hosting IP addresses on a daily basis. We conclude by discussing potential approaches for website owners and hosting/CDN providers for maximizing the privacy benefits of ESNI.},
+booktitle = {Proceedings of the 15th ACM Asia Conference on Computer and Communications Security},
+pages = {290–304},
+numpages = {15},
+keywords = {DNS over HTTPS (DoH), DNS over TLS (DoT), active DNS measurement, domain name privacy, encrypted SNI (ESNI)},
+location = {Taipei, Taiwan},
+series = {ASIA CCS '20}
 }

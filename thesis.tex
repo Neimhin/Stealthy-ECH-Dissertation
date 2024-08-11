@@ -9,7 +9,8 @@
 %\hypersetup{pageanchor=true}
 
 \begin{thesisabstract}                            %% the abstract for your thesis
-...ABSTRACT...
+The \ac{SNI} extension to TLS 1.3 is sent in cleartext and thus susceptible to \ac{PM} and censorship. While the draft \ac{ECH} extension provides a mechanism to hide the \ac{SNI} and other information from surveillance and censorship tools, it falls short in one of its design goals:``Don’t Stick Ou'' \cite{rfc8744-issues}. In this work we propose, manually analyse, and describe the implementation of a stealthy variant of the \ac{ECH} extension, designed to prioritise the goal of not sticking out.
+
 \end{thesisabstract}
 
 %\thesisdedicationpage                            %% Generate the dedication page.
@@ -31,7 +32,7 @@
 \input{chapter/2-background}
 \input{chapter/3-technical-background}
 \input{chapter/4-design}
-\input{chapter/5-implementation-and-testing}
+%\input{chapter/5-implementation-and-testing}
 \input{chapter/6-evaluation}
 \input{chapter/7-conclusions}
 \input{acronyms}
