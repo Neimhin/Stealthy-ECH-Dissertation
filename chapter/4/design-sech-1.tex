@@ -1,51 +1,26 @@
-\section{SECH 1: Secretless Stealthy Encoding}
-\subsection{Motivations and Deployment Scenarios}
+% \subsection{Design}
+% It turns out that \ac{SECH} 1 can be implemented 
+% by running \ac{SECH} 2 (which we'll describe below),
+% except using a publicly known \varsechlongtermkey{}.
 
-There are potential use-cases
-for an \ac{SECH} variant
-that uses no encryption (and thus
-needs no secret)
-but such a variant should more properly be called just `stealthy SNI' or `stealthy CH'.
+% The basic idea is to use a symmetric key encryption to encrypt the
+% inner \ac{SNI} and \ac{ALPN}, and then replace the \var{random}
+% and \varlegacysessionid{} fields of the \var{ClientHello}
+% with the ciphertext. Since the ciphertext is pseudorandom
+% a censor is forced to perform a decryption operation using
+% the publicly known key in order to detect \ac{SECH} 1.
 
-An advantage of such a variant is the very low coordination/infrastructure requirements to get this working.
-Client and server simply need to run the same
-protocol, with no need for out-of-band secret sharing,
-or public key distribution.
+% Some of the design choices we lay out for \ac{SECH} 2 are overkill
+% for \ac{SECH} 1.
+% For instance the acceptance confirmation signal
+% could be dropped in the case of \ac{SECH} 1.
+% Due to the limited use-cases for \ac{SECH} 1, however,
+% we have decided to focus our efforts on designing a secure
+% \ac{SECH} 2, and neglect to expound here a
+% version of \ac{SECH} 1 optimised to its particular
+% design motivations and requirements.
 
-Our design for \ac{SECH} 1 does {\em not} offer confidentiality of the \ac{SNI} or \ac{ALPN}.
-The aim here is purely to circumvent censorship
-in the case of a naïve censor.
-
-As a censorship circumvention method this can be easily detected and prevented, but this it is still possibly useful transiently and at a small scale.
-If only a small number of Internet users are using the scheme
-then it might successfully evade censorship for a time,
-before the censor invests the resources to block it.
-
-This approach could be one element in a strategy of circumvention in depth: using lots of different circumvention methods (including this insecure one) in order to increase the cost of censorship for the censor.
-
-\subsection{Design}
-It turns out that \ac{SECH} 1 can be implemented 
-by running \ac{SECH} 2 (which we'll describe below),
-except using a publicly known \varsechlongtermkey{}.
-
-The basic idea is to use a symmetric key encryption to encrypt the
-inner \ac{SNI} and \ac{ALPN}, and then replace the \var{random}
-and \varlegacysessionid{} fields of the \var{ClientHello}
-with the ciphertext. Since the ciphertext is pseudorandom
-a censor is forced to perform a decryption operation using
-the publicly known key in order to detect \ac{SECH} 1.
-
-Some of the design choices we lay out for \ac{SECH} 2 are overkill
-for \ac{SECH} 1.
-For instance the acceptance confirmation signal
-could be dropped in the case of \ac{SECH} 1.
-Due to the limited use-cases for \ac{SECH} 1, however,
-we have decided to focus our efforts on designing a secure
-\ac{SECH} 2, and neglect to expound here a
-version of \ac{SECH} 1 optimised to its particular
-design motivations and requirements.
-
-\subsection{Implementation Notes}
-The implementation of \ac{SECH} 2 can be used to run \ac{SECH} 1
-by configuring the \varsechlongtermkey{} with a publicly
-known value such as the 32 byte null string.
+% \subsection{Implementation Notes}
+% The implementation of \ac{SECH} 2 can be used to run \ac{SECH} 1
+% by configuring the \varsechlongtermkey{} with a publicly
+% known value such as the 32 byte null string.

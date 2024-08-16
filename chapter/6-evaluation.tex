@@ -1,7 +1,425 @@
 \chapter{Evaluation}
 \label{chap:Evaluation}
 
+
+\section{Active Attacks}
+
+\label{sec:active-attacks}
+Throughout the development of \ac{ECH} various
+active attacks that might allow an attacker to discover inner \ac{CH} data
+have been described and discussed.
+In this section we describe how those attacks could work against naïvely designed protocols,
+how the \ac{ECH} draft proposes to mitigate them,
+and whether existing mitigations can be leveraged in an \ac{SECH} design.
+
+\subsection{Cut-and-Paste}
+\label{sec:cut-and-paste-attacks}
+Looking at a naïve design assuming a shared secret $s$ known to client and client-facing server, the client uses \ac{AEAD} (with zero-length \ac{AAD})
+to create a cipher text of the inner servername and encodes the ciphertext
+(including \ac{AEAD} \nonce and tag)
+in the 64 octets of cover.
+An attacker can copy and paste the full cipher text into an attacker-controlled \ac{CH}.
+The server will successfully decrypt the inner servername in the attacker-controlled \ac{CH},
+and send an encrypted \var{Certificate} corresponding to the inner servername.
+Because the attacker controlled the key share in the \ac{CH} it will be able to decrypt the
+\var{Certificate} and learn the value of the inner \ac{SNI}.
+
+\cite{esni} call this the Cut-and-Paste attack.
+The mitigation adopted in the
+\ac{ECH} design is to construct a \var{ClientHelloOuterAAD}
+to be used as \ac{AAD}
+for the \ac{ECH} payload encryption.
+In \ac{ECH} the \var{ClientHelloOuterAAD} is a serialization of the \var{ClientHelloOuter},
+except with the \var{payload} field of the \varech extension replaced by a string of the same
+length whose contents are zeros.
+This means that if an attacker copies the \varech extension
+into an attacker-controlled \ac{CHO} and the \var{key\_share} is different, then
+the \ac{ECH} \var{payload} decryption will fail to authenticate.
+The basic idea is to bind the ciphertext of the inner values cryptographically to the outer context.
+
+The \ac{MAC} over the \ac{AAD} in this design is
+essential to preventing this attack.
+This means unauthenticated encryption
+such as \ac{CBC}
+(which would be desirable for the lesser bandwidth overhead and lesser \nonce brittleness)
+cannot be used.
+
+We'll adopt the \ac{AAD} approach in the \ac{SECH} designs proposed below,
+but additionally in some cases we'll use the \var{ClientHelloOuterAAD}
+as an input for the derivation of the \ac{SECH} session key.
+Using \var{ClientHelloOuterAAD} as a label in key derivation is reminiscent of
+how the transcript hash is incorporated in the normal \ac{TLS} 1.3
+key-schedule.
+The reason to do this as well as \ac{AAD} is such that the
+session encryption keys are unique to each session and unpredictable,
+which mitigates the issue of \nonce brittleness (see Section~\ref{sec:nonce-brittleness}).
+
+However, using \var{ClientHelloOuterAAD} as a label for key derivation as well as \ac{AAD}
+for the same encryption context is potentially problematic because it means
+that the encryption key and the \ac{AAD} are not independent.
+It is beyond the scope of this dissertation to analyse whether the relationship
+between the \ac{SECH} session key and the \ac{AAD} exposes a vulnerability. % TODO: put this in Security Considerations?
+
+\subsection{The Client-Reaction Attack}
+
+Section~10.12.1 of the \ac{ECH} draft describes a possible client reaction attack, which is
+an active attack that could reveal the inner \ac{SNI}. The attack works as follows.
+
+A client sends a \ac{CHO} which is intercepted by an attacker and dropped such that
+the server does not receive the message.
+The attacker does not possess the appropriate
+keys in order to decrypt and read the \ac{CHI}. Let's say
+the client's inner \ac{SNI} value is \var{example.com}.
+The attacker
+responds with normal messages including a `test' \ac{tlsC} message,
+which the attacker may have attained from the server
+in a previous independent connection.
+When the client decrypts and attempts to verify the \var{Certificate} message
+it may behave differently depending on the attacker's test servername.
+Differences in behaviour here may act as a side channel by which the attacker can
+gain information about the inner \ac{SNI}.
+The attacker is not able to produce a valid \ac{CV}, but does not need to for the attack to work.
+In fact, the attacker only sends the \var{Certificate} message and waits for a response.
+If the client {\em does not} abort
+the handshake after receiving the \var{Certificate} message, then
+this is a signal to the attacker that
+the \ac{tlsC} corresponds to the client's inner \ac{SNI}.
+On the other hand if the client does
+abort the handshake on receipt of the \ac{tlsC} message then
+the attacker learns that the \ac{tlsC}
+does not correspond to the inner \ac{SNI}.
+
+A (rather dubious) solution to this would be
+to ensure that the client only sends abort
+messages relating to inappropriate \ac{tlsC} messages after the \ac{CV} has been processed,
+thereby hiding from the attacker the true cause of the abort message.
+
+The mitigation against this attack used in the \ac{ECH} draft, however, attempts the nip problem earlier in the bud, by preventing the attacker from being able to correctly encrypt the \ac{tlsC} message.
+This is achieved in the \ac{ECH}  draft by including the 32 octet
+\ac{CH}\var{.random} which is protected under the \ac{HPKE} \ac{AEAD}.
+This secret inner random value is digested in the key-schedule such that an attacker cannot
+create a valid handshake secret to encrypt the test \var{Certificate} (or any other messages for that matter).
+
+The approach used in \ac{ECH}, preventing the attacker
+from being able to encrypt the \var{Certificate}
+in the first place,
+exposes a new risk in the case of \ac{SECH}.
+In normal \var{TLS} 1.3 an attacker that intercepts the \ac{CH}
+can
+create valid handshake traffic keys (but not the \var{CertVerify} message).
+If the attacker responds with \ac{SH} and then a \var{tlsEE}
+message encrypted according to normal \ac{TLS} 1.3,
+but the client aborts because it is expecting an \ac{SECH}-specific
+handshake key for \ac{tlsEE},
+then this alerts the attacker that the client is not using normal \ac{TLS} 1.3.
+This would destroy the stealth of the connection.
+
+We propose to mitigate this attack
+by having the client only use the
+\ac{SECH}-specific handshake keys when the \ac{SH}
+contains a valid \ac{SECH} confirmation signal verifying
+that the server has successfully constructed \ac{CHI}.
+If the accept confirmation signal is not valid then the client continues with a normal \ac{TLS} 1.3 handshake.
+The handshake keys are thus verified to have been negotiated
+with a party that already knows the inner \ac{SNI}.
+This design requires that the \ac{SECH} confirmation
+signal be secure against forgery.
+The short 8 octet \ac{ECH} confirmation signal is potentially
+not long enough for this purpose,
+so we propose a 24 octet accept confirmation.
+
+Another angle for attack in this design is to try to replay the accept confirmation signal.
+To mitigate this the accept confirmation signal
+will digest the transcript of the \ac{SH},
+including the server's \var{key\_share} and/or \ac{PSK} identity.
+If an attacker replays the accept confirmation, they will not have the relevant private keys (corresponding to the \var{key\_share} or \ac{PSK} identity)
+to construct handshake or traffic secrets.
+
+% A variant of the client reaction attack could be used to reveal that \ac{SECH}
+% is being attempted. Say a client sends an \ac{SECH} \var{ClientHello} which
+% is intercepted by an attacker. The attacker attempts to continue
+% as in normal \ac{TLS} 1.3 handshake sending the \var{ServerHello} and \var{EncryptedExtensions}
+% messages.
+
+% The attacker takes a guess at the values of the inner \var{ClientHello}
+% in order to attain a valid handshake encryption key.
+% The attacker then sends the \var{EncryptedExtensions} message encrypted
+% with forged keys and waits for a reaction.
+% If the client successfully decrypts the encrypted handshake it will emit no abort
+% message, which tells the attacker that the handshake keys were correct and thus the \var{ClientHelloInner} was correctly guessed, revealing the inner \ac{SNI} etc. 
+% Similar to before this type of client reaction attack can be mitigated with the inner random,
+% which prevents the attacker from being able to guess the inner transcript and thus
+% prevents attaining valid handshake keys.
+
+% If the attacker tries only to reveal whether \ac{SECH} is being attempted the attack would go as follows.
+% The attacker intercepts an \ac{SECH} \var{ClientHelloOuter}
+% and responds with a \var{ServerHello}
+% as if the connection were a normal \ac{TLS} 1.3 message. The attacker has sufficient
+% information to construct valid handshake traffic secrets and sends the encrypted \var{EncryptedExtensions} messages.
+% If the client were to abort at this point
+% due to \ac{SECH} not being accepted
+% it would reveal to the attacker that \ac{SECH} was attempted.
+% Therefore, in such a situation a client
+% should continue with the handshake as if
+% it were a normal \ac{TLS} 1.3 handshake in order
+% to hide the fact that \ac{SECH} was attempted.
+% This type of mitigation (completing either a \ac{TLS} or \ac{TLS}/\ac{SECH} handshake depending on the circumstances) is complicated to implement correctly,
+% but as yet we are not aware of an alternative solution given the design criteria.
+
+For our approach to \ac{SECH} we are leveraging a limited amount of cover in the \var{ClientHello}.
+Using a significant amount of this cover for an inner random is unfortunate because it reduces
+the amount of space available for the actual \ac{SECH} payload, i.e. the inner \ac{SNI} and \ac{ALPN}.
+Nonetheless this is the design approach adopted below.
+
+For the \ac{HPKE}-based \ac{SECH} approach described above we are assuming
+64 octets of available cover. The smallest \var{enc} of any of the current
+\ac{HPKE} suites is 32 octets (using Curve25519).
+This leaves 32 octets of space for the \ac{AEAD}
+encryption.
+Under \ac{HPKE} we do not need to
+transmit the \ac{AEAD} nonce because
+it is derived from the context.
+We have chosen \ac{AES-GCM} which uses a 16 octet tag, leaving 16 octets for the encrypted text.
+There is simply not enough room for a 32 octet inner random as is done
+for \ac{ECH}.
+One approach would be to split the remaining space,
+e.g. assigning 8 octets to the inner \ac{SNI} and 8 octets to the inner random.
+The level of protection
+offered by an 8 octet random is of course much less than that of a 32 octet random,
+but is better than nothing and potentially still sufficient for some use-cases.
+
+The essential idea behind the inner random in \ac{ECH} is to have a long
+shared secret between the server and backend server to prevent an attacker
+from guessing the transcript.
+For an \ac{AEAD}-only \ac{SECH} design we will be assuming some secret has
+been shared out-of-band.
+Rather than using an inner random, which occupies bandwidth,
+we could use this out-of-band shared secret to generate an inner random
+in order to protect the transcript.
+In fact our first thought might be to just
+use the out-of-band shared secret as the `inner random',
+but it would be unfortunate to have to share the long-term out-of-band shared secret between
+all three of the client, client-facing server, and backend server.
+By instead deriving the inner random from the long-term out-of-band shared secret, the
+long-term secret only needs to be known to the client and client-facing server, and 
+the inner random can be ephemeral.
+
+This approach could also be leveraged in a \ac{HPKE}-based \ac{SECH}.
+The \var{enc} value which is an encrypted symmetric key would be decrypted
+by the client-facing server using the appropriate \ac{KEM} private key, meaning the encapsulated \ac{AEAD} key is
+now shared between the client and client-facing server.
+We propose that this shared \ac{AEAD} key can be used to derive an inner random
+which the client-facing server can send to the backend server.
+This results in the inner random being shared between all three parties, as is
+the case in the \ac{ECH} draft.
+
+% Another possible approach to mitigating this type of attack is to incorporate the \ac{SECH}
+% symmetric key in the key schedule, rather than an inner random.
+% This would mean more space is available in the \var{ClienHello} cover for the \ac{SECH} payload.
+% However, in order to incorporate the \ac{SECH} symmetric key into the key schedule it would
+% have to be known to all three of the client, the client-facing server, and the backend server.
+% Sharing a key between three parties like this is undesirable, and so with such a design
+% we would have have to recommend only deploying in share-mode.
+
+\input{chapter/4/HRR-Hijacking}
+
+\subsection{\var{ClientHello} Malleability}
+Attacks that leverage \ac{CH} malleability are generalisations of the cut-and-paste attack
+described above.
+
+The example of an attack based on \var{ClientHello} malleability described in Section~10.12.3 of \cite{esni}
+employs differences in server behaviour depending on the value of the \ac{PSK}.
+An attacker establishes a connection
+with the \ac{ECH} server and attains a fresh resumption \ac{PSK} from the backend \var{example.com} host.
+When a legitimate client sends a \ac{CHO}
+the attacker intercepts and modifies the message inserting the attacker's \ac{PSK}.
+Say the server successfully decrypts the \varech extension and processes an inner \ac{SNI} of \var{example.com}.
+In this case the attacker's \ac{PSK} will be recognised and the \ac{PSK} binder will be checked
+by the backend server.
+The \ac{PSK} binder will fail to verify and the server will
+abort the handshake.
+However, if the legitimate client's inner \ac{SNI} were \var{different.com} then the \ac{PSK} would be silently
+ignored and the server will continue with the handshake.
+This difference in behaviour reveals information to the attacker about
+the true \ac{SNI}.
+
+\ac{ECH} mitigates this attack by verifying both inputs (\var{EncodedClientHelloInner} via authenticated encryption and \var{ClientHelloOuter} via \ac{AAD}),
+meaning that attempts to exploit malleability will result in decryption failure.
+There is a a complication, however.
+The \ac{PSK} \var{binder} in normal \ac{TLS} 1.3 incorporates a digest of the full
+\ac{CH} up to and excluding the \var{binder} value.
+At the same time the \ac{ECH} payload
+digests the entire \var{ClientHelloOuterAAD} as \ac{AAD}.
+If we allowed inclusion of both a \ac{PSK} \var{binder} {\em and}
+a \ac{ECH} extension we'd have a chicken and egg problem: can't compute \var{binder} until \ac{ECH} extension is known, can't
+compute \ac{ECH} extension until \var{binder} is known.
+For this reason the \ac{ECH} draft prohibits
+advertisement of a real \ac{PSK} in the \ac{CHO},
+although including a \ac{GREASE} \ac{PSK} in the \ac{CHO}
+is recommended when advertising a \ac{PSK} in the \ac{CHI}.
+
+The \ac{ECH} approach does not translate easily to \ac{SECH} because there is not enough
+space in the \ac{SECH} cover to include an inner \ac{PSK} advertisement.
+Also, we'll explore the use of \ac{PSK}s as the symmetric key for servername encryption,
+meaning that the \ac{PSK} identity would have to be available in cleartext.
+In the case of using a \ac{PSK} for symmetric key encryption the \ac{PSK} identity will be known
+to the client-facing server and not the backend server.
+
+For the \ac{SECH} encryption schemes we propose
+setting the \var{binders} list to all 0s in the \var{ClientHelloOuterAAD}.
+After \var{ClientHelloOuterAAD} has been computed we can perform \ac{SECH}
+encryption and insert the ciphertext. At this point we can compute
+the transcript of the \var{ClientHello} up to but not including
+the \var{binders} so that the
+the \ac{PSK} \var{binders} themselves can be computed.
+Protection against the \ac{PSK} insertion attack is achieved by including the \ac{PSK}
+identity in \var{ClientHelloOuterADD}. If an attacker swaps the legitimate client's \ac{PSK} identity with its
+own then the \ac{SECH} decryption will fail to authenticate and the server continues with the \var{ClientHelloOuter} only.
+
+\subsection{\var{ClientHelloInner} Packet Amplification}
+
+For completeness we'll consider here the \ac{CHI}
+packet amplification attack discussed in Section~10.12.4 of \cite{esni}, although we'll see that the
+types of \ac{SECH} designs pursued here are not vulnerable to this attack.
+
+A \ac{CHI} packet amplification
+vulnerability would allow a malicious attacker to construct
+a \ac{CHO} which takes a disproportionate amount
+of time to process for the server compared to the attacker.
+
+The \ac{ECH} draft allows for compression of the
+\ac{CHI} by referencing extensions in the
+\ac{CHO} rather than repeating them.
+The compressed version of the \ac{CHI} is
+called the \var{EncodedClientHelloInner}, which may
+contain the \varechouterextensions{} extension,
+whose value is a list of extension types which should be copied
+from the \ac{CHO} into the \ac{CHI}
+in the corresponding location of the \varechouterextensions{}.
+If there were no restrictions on the way in which outer extensions
+were referenced or ordered, then the time-complexity of filling
+the \ac{CHI} would be $O(m\cdot n)$ where $m$ is the number of extensions in \ac{CHO} and $n$ is the
+number of extensions referenced in the outer extensions list.
+This time-complexity would be greater than the bandwidth requirements of the attacker, giving the attacker an advantage in
+mounting a \ac{DoS} attack.
+In a similar fashion if the outer extensions list were allowed to contain repetition it would expose a \ac{DoS} vulnerability.
+
+The \ac{ECH} mitigation to this attack is to enforce restrictions
+on the outer extensions list, in particular that it contains no repetitions,
+that the referenced extensions are in the same order as they are in \ac{CHO},
+and that the referenced extenions are contiguous. This means that a server can perform the \ac{CHI} decoding in a single pass of the extensions.
+
+For \ac{SECH} we are not proposing a decoding step analagous to how \ac{ECH} involves decoding \var{EncodedClientHelloInner}.
+As of yet we have not discovered an analagous packet amplication
+attack against our \ac{SECH} designs.
+
+\subsection{Backchannel Discrimination Attacks}
+If an attacker is on-path between both the client and client-facing server,
+as well as between the client-facing server and each of the backend servers,
+the attacker may be able to detect the use of stealthy servername encryption,
+or even infer the inner \ac{SNI} based on correlation
+between client-to-client-facing-server and client-facing-server-to-backend-server
+messages,
+even if the backchannel is encrypted.
+
+For this reason we design our \ac{SECH} protocols
+such that the size of the \ac{CHI} is identical to the size of the \ac{CHO},
+to reduce the attacker's ability to detect \ac{SECH} via traffic analysis.
+
+However, if the path between client-facing server and backend server is different for each backend servername,
+an attacker could infer the true backend server based on traffic correlation.
+Mitigating this particular case is beyond the scope of this work.
+
+\subsection{Risks Relating to Nonce Brittleness}
+As discussed in Section~\ref{sec:nonce-brittleness},
+reusing a \nonce/key pair,
+in particular for \ac{AES}-\ac{GCM},
+is a cryptographic disaster.
+If the \ac{SECH} 2 design were to use the
+\varsechlongtermkey{} directly for encryption,
+then the probability of \nonce/key reuse would
+be greater than 50\% after only about $3.3\times 10^{14}$.
+In a deployment with a widely shared \varsechlongtermkey{}
+this number would be far too low for comfort.
+We have mitigated this risk by deriving a session
+key for each \ac{SECH} attempt.
+This key is derived from both the \varsechlongtermkey{}
+and the transcript of the \var{ClientHelloOuterAAD}.
+If an attacker were to record enough \var{ClientHelloOuterAAD}s from legitimate clients,
+some of them would be identical.
+After collecting about $3.3\times 10^{14}$ identical
+\var{ClientHelloOuterAAD}s the risk of a repeated
+\nonce/key pair is again uncomfortably high.
+But, the chance of a repeated \var{ClientHelloOuterAAD}
+is vanishingly small because it contains the \var{key\_share}
+(the exact probability depending on the curve/group used).
+For this reason we conjecture that our design is
+sufficiently resistant to \nonce brittleness.
+
+\subsection{Null-terminated Servername Encoding}
+We have specified that the servername and \ac{ALPN} should
+be encoded as null-terminated strings.
+This goes against the typical pattern for \ac{TLS},
+where length-prefixing is preferred for various security reasons.
+Null-termination increases the risk of implementations with
+buffer overflow vulnerabilities, can entail
+non-deterministic processing, and cannot be used
+for data which may include the null byte.
+
+The advantage of null-termination in our case is that it
+gives us 1 extra character for the servername compared to
+length-prefixing, because the null-termination byte
+is implicit when the servername length equals the plaintext length.
+
+The lack of conformity with the rest of \ac{TLS} and
+increased potential for buggy implementations
+introduced by the use of null-termination is arguably
+not worth the benefit of one extra character.
+
 \section{General Security and Privacy Considerations for SECH}
+
+An important preliminary note is that the \ac{SECH}
+protocols could be used in a wide variety of system and application designs.
+Systems that make use of an \ac{SECH} protocol
+do not magically become secure
+or improve privacy due to the inclusion of \ac{SECH}.
+The inclusion of \ac{SECH} has to be done sensibly,
+and certain aspects of how SECH can be sensibly
+deployed to improve the security or privacy
+of a system are out of scope of the protocols themselves.
+For instance the protocols do not touch the topic of server key rotation.
+A practical deployment of a long lasting \ac{SECH} server
+should have an automated system
+to update public/private key pairs
+and relevant \ac{DNS} records.
+
+Note as well that the name of a client’s target server can be (and, in 2024, typically is) leaked over \ac{DNS} requests.
+Therefore, in order for a client to enjoy the privacy benefits of \ac{SECH},
+DNS requests must also be made securely and privately, e.g. using \ac{DoH} or \ac{DoT}.
+Another way in which the target server name can be leaked is if the client application queries uses the \ac{OCSP} to query whether the target server’s certificate has been revoked.
+In order to make this query the client has to tell the \ac{OCSP} server the serial number of the target server’s certificate.
+While the \ac{OCSP} query can be made securely, whoever runs the \ac{OCSP} server could easily store the fact that the client was preparing to contact the target server.
+Same can be said for the \ac{DNS} resolver.
+These examples go to show that an \ac{SECH} extension
+is only one piece in the puzzle
+of improving the servername confidentiality.
+
+\subsection{DoS}
+The proposed \ac{SECH} designs require trial
+decryption of all incoming \ac{CH}s,
+which increases the advantage of the attacker
+when mounting a \ac{DoS} attack.
+If the server enables multiple \ac{SECH} keys
+the attacker advantage is again increased
+proportionally.
+Therefore, the number of enabled \ac{SECH} keys
+should be kept to a minimum.
+
+A \ac{DoS} attack based on \ac{SECH} decryption
+is not a blind \ac{DoS}
+since the \ac{CH}
+is only processed after completion of the \ac{TCP}
+handshake.
 
 \subsection{Protocol Confidentiality}
 As mentioned in Section~\ref{bleichenbacher-attack} any good \ac{SECH} protocol should protect the confidentiality of the fact that \ac{SECH} is being attempted and the fact that \ac{SECH} is supported, which we'll call \ac{PC}.
@@ -24,11 +442,12 @@ to provide connection-level \ac{PC} in all cases,
 and channel-level \ac{PC} for some types of deployment (i.e. where the the \ac{SECH} 2 capability is 
 never advertised publicly).
 
-We also aspired to make both levels of \ac{PC} possible
-with the \ac{HPKE} based \ac{SECH} 5, however
+We also aspired to make both channel and connection level \ac{PC} possible
+with the \ac{HPKE} based \ac{SECH} 3, however
 we imagine the main benefit of the \ac{HPKE}-variant
 is that the capability can be advertised and distributed
-on the \ac{DNS}, in which channel-level \ac{PC} is forfeited.
+on the \ac{DNS},
+in which case channel-level \ac{PC} is forfeited.
 
 In a situation where a user is attempting to circumvent censorship it could be that the censor will respond harshly or violently to detected circumvention attempts.
 The risk of \ac{PC} being broken may be
@@ -40,7 +459,8 @@ have as yet undiscovered vulnerabilities.
 
 There are aspects of the protocol design that will protect this information, for instance how the connection continues with regular \ac{TLS} 1.3 whenever \ac{SECH} is aborted.
 However, ensuring the confidentiality of this information depends also on
-a careful and secure information. For instance, it may be possible for an attacker to somehow with high likelihood guess the library/implementation used for a particular channel. With this information the attacker could then analyse the timing of messages, or the particular alert messages under various circumstances to gain information about whether \ac{SECH} is in use.
+a careful and secure implementation. For instance, it may be possible for an attacker to somehow guess the library/implementation used for a particular channel.
+With this information the attacker could then analyse the timing of messages, or the particular alert messages under various circumstances to gain information about whether \ac{SECH} is in use.
 The recurring discovery of Bleichenbacher-style attacks \citep{ronen2019ninelivesbleichenbacher} are an attestation to the difficulty of implementing protocols that do not reveal such secret information.
 
 To make matters worse, unlike \ac{RSA} private messages/keys which consist of many bits, the fact of a protocol being used/supported can be represented by a single bit, so \ac{PC} is broken if an attacker can attain this single bit, meaning a successful attack against a vulnerable system would likely require much fewer oracle accesses than is the case for the attack described by \cite{bleichenbacher1998chosen}. It should not be taken for granted that any given implementation of \ac{SECH} sufficiently protects \ac{PC}.
@@ -75,37 +495,32 @@ but also the standard guarantees of \ac{TLS} 1.3.
 As yet we have not discovered a vulnerability exploiting this
 relationship.
 
-% The Evaluation chapter should present a comparison of the work that forms the basis of the dissertation and existing work. At a higher level, it should demonstrate an awareness of the relationship of the dissertation work to the research area that it is based in.
-
-% \section{Experiments}
-
-% In the case where experiments have been carried out, the experimental setup and the values that were defined for the variables need to be presented in a table e.g. table~\ref{tab:experimentsetup}.
-
-% \begin{table}[!h]
-% \begin{center}
-% 	\begin{tabular}{|l|c|c|} 
-% 	\hline
-%  	\bf Column 1  & \bf Column 2  & \bf Column 3 \\
-%   	\hline
-% 	Row 1 & Item 1 & Item 2 \\
-% 	Row 2 & Item 1 & Item 2 \\
-% 	Row 3 & Item 1 & Item 2 \\
-% 	Row 4 & Item 1 & Item 2 \\
-% 	\hline
-% 	\end{tabular}
-% \end{center}
-% \caption[Variables of the experiment]{Caption that explains the table to the reader}	
-% \label{tab:experimentsetup}
-% \end{table}
 
 
-% \section{Results}
+\subsection{Brute Force Key Compromise}
 
-% Figures that present results such as figure~\ref{fig:measurements} need to display descriptions of the axes, the units and scales of the measurements, statistical values, etc. Where measurements were taken from experiments, error bars or confidence intervals need to be provided to give the reader an indication of the spread of the measurements.
+There are several ways for an attacker to mount an active brute force attack
+to compromise either a \varsechlongtermkey{} or the private key
+corresponding with a \var{SECHConfig}.
 
-% \includescalefigure{fig:measurements}{Measurement of System Wakeups}{Long caption that describes the figure to the reader}{1}{measurements.png}
+With \ac{SECH} 2 the attacker can simply repeatedly try different \varsechlongtermkey{}
+values to offer \ac{SECH} 2.
+If the server sends back a valid acceptance confirmation then the long term key
+has been identified and compromised.
+To make matters worse, the attacker can disguise the failed \ac{SECH} 2 attempt
+as a regular \ac{TLS} 1.3 handshake.
+This makes it difficult to administer effective brute force attack mitigations,
+like rate limiting requests.
+Also, such brute force attack could be distributed across millions of
+devices/endpoints, making detection of the attack difficult.
+Also, since \ac{SECH} 2's servername/\ac{ALPN} encryption is not forward secret,
+compromising the key can be used to break servername/\ac{ALPN} confidentiality of all previous sessions
+under that key.
 
-
-% \section{Summary}
-
-% Every chapter aside from the first and last chapter should conclude with a summary that presents the outcome of the chapter in a short, accessible form. 
+The number of accesses an attacker would need no make to guarantee
+a key compromise would be $2^L$ for an $L$ bit long term key.
+However, even with far fewer requests there is an uncomfortable
+probability of a successful attack.
+This in an upper bound, and algorithms may be discovered
+which can be used to compromise the key with fewer accesses.
+To mitigate this attack the \varsechlongtermkey{} should be rotated regularly.

@@ -1,6 +1,36 @@
 \chapter{Conclusions \& Future Work}
 \label{chap:Conclusions}
+The 64 bytes of cover provided by
+the \var{random} and \var{legacy\_session\_id}
+appear to be sufficient to implement both \ac{AEAD}-based
+and \ac{HPKE}-based variants of the \ac{ECH} protocol,
+each with either connection-level or channel-level \ac{PC}.
 
+The requirement of not sticking out under an active-attacker threat model results
+in the necessity of both client and server sending more messages than are necessary for \ac{ECH} in failure cases,
+which makes our designs for \ac{SECH} less appealing.
+
+There remains a risk, also, that the use of ciphertext in
+the place of the \var{random}
+exposes the \ac{TLS} handshake to new vulnerabilities,
+especially in the case of \ac{SECH} 3 where the \var{enc}
+value is distinguishable from a uniform random value.
+This aspect of the designs requires more thorough cryptographic analysis.
+
+Another appealing aspect of \ac{SECH} as opposed to \ac{ECH}
+is how it could provide deniability.
+If a user's history of outer \ac{SNI} values has been recorded,
+this is not necessarily evidence that the user actually visited
+those sites, since the user may have been using \ac{SECH}.
+This holds true even if \ac{SECH} has never been deployed since
+the user can claim to have used/deployed \ac{SECH},
+and the attacker cannot determine whether they are telling the truth.
+
+Still, we find it unlikely that our \ac{SECH} designs will gain
+widespread adoption solely for the privacy benefit offered,
+since the \ac{ECH} draft is already gaining adoption and has
+been much more thoroughly analysed.
+However, the censorship-circumvention use case of \ac{SECH} may have greater appeal.
 
 \section{Future Work}
 
@@ -33,9 +63,76 @@ More ambitiously, however, it would be ideal to find
 a mitigation against the \ac{HRR} hijacking problem that
 does not involve excessive cover messages and bandwidth.
 
-% This chapter should summarize the work presented in the dissertation and discuss the conclusions that can be drawn from the work and the results presented in chapter~\ref{chap:Evaluation}.
+Our \ac{SECH} 2 design allows bootstrapping access using the \ac{PSK} system.
+This means that any client can access
+the \ac{SECH} 2 server without the need for a
+pre-established secret.
+This entails that channel-level \ac{PC} can be broken simply by trying to connect to the server using the \ac{PSK} bootstrap method.
+An alternative design could protect the channel-level \ac{PC} by ensuring that only \ac{PSK} established by the \varsechlongtermkey{}
+could be used for connecting to the \ac{SECH} 2 backend.
+This could be implemented in application code
+without additional changes to the protocol,
+since the specific format and semantics of \ac{PSK} tickets is not part of the \ac{TLS} 1.3 spec,
+and this flexibility could be leveraged to
+assure channel-level \ac{PC}.
 
+\subsection{Non-uniform \var{enc}}
 
-% \section{Future Work}
+The non-uniformity of the \ac{HPKE} \var{enc} leaks
+information that \ac{SECH} 3 is being attempted.
+One approach to mitigate this would be shape the distribution
+of a sequence of \var{enc} values by rejecting some of them.
+For example, say the first bit has probability $2/3$ of being 1.
+If we reject half of the \var{enc} values for which the first bit is 1
+then the distribution of accepted \var{enc}s' first bit will be uniform.
+Quantifying the true distributions for \ac{HPKE} \ac{KEM}s,
+in particular \ac{X25519},
+and constructing rejection algorithms to shape the distribution of \var{enc},
+could be used to improve the stealth of \ac{SECH} 3.
 
-% The section may present a list of items that were beyond the scope of the dissertation.
+\subsection{Inner Servername Compression}
+Mixing compression and encryption can expose a system
+to new attacks against confidentiality.
+For instance the \ac{CRIME} and \ac{BREACH} attacks
+have been successfully mounted against various versions of \ac{TLS}.
+
+To avoid these types of attacks we have neglected
+to pursue a design incorporating compression of the inner servername.
+However, considering the severe limitation of a maximum of 12 bytes
+to encode the inner servername in \ac{SECH} 2 and \ac{SECH} 3,
+there is a strong temptation to incorporate servername compression
+in order to increase the maximum inner servername length.
+
+One approach would be to use a more efficient encoding leveraging
+the restrictions on domain names specified in RFC 1034 \citep{rfc1034}.
+For instance the character set for domain names is much smaller than the 255 possible ASCII values, meaning each character could be encoded with fewer than 8 bits.
+
+Another approach would be to send the hash of the servername,
+where the hash can be an arbitrary length.
+This would entail an engineering burden to deal with the case
+of hash collisions, but this can be easily overcome.
+
+\subsection{SECH 1: Secretless Stealthy Encoding}
+\label{sec:sech1}
+There are potential use-cases
+for an \ac{SECH} variant
+that uses no encryption (and thus
+needs no secret)
+but such a variant should more properly be called just `stealthy SNI' or `stealthy CH'.
+
+An advantage of such a variant is the very low coordination/infrastructure requirements to get this working.
+Client and server simply need to run the same
+protocol, with no need for out-of-band secret sharing,
+or public key distribution.
+
+Our design for \ac{SECH} 1 does {\em not} offer confidentiality of the \ac{SNI} or \ac{ALPN}.
+The aim here is purely to circumvent censorship
+in the case of a naïve censor.
+
+As a censorship circumvention method this can be easily detected and prevented,
+but this is still possibly useful transiently and at a small scale.
+If only a small number of Internet users are using the scheme
+then it might successfully evade censorship for a time,
+before the censor invests the resources to block it.
+
+% This approach could be one element in a strategy of circumvention in depth: using lots of different circumvention methods (including this insecure one) in order to increase the cost of censorship for the censor.

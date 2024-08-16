@@ -4,6 +4,14 @@ clean:
 	-rm $(FIGURES)
 	-rm tmp/*
 
+abstract.pdf: Stealthy_ECH_Dissertation.pdf
+	pdftk $< cat 2 output $@
+
+figure/choaad-sech2-example.pdf: figure/ClientHelloOuterAAD-sech2-example.txt
+	enscript --color --no-header $< --output - | ps2pdf - - | pdfcrop - $@
+figure/chi-sh-sech2-example.pdf: figure/accept-confirmation-transcript-sech2.txt
+	enscript --color --no-header $< --output - | ps2pdf - - | pdfcrop - $@
+
 figure/birthday-paradox.pdf: figure/birthday-paradox.py
 	python ./figure/birthday-paradox.py $@
 figure/sech5-cover.pdf: figure/sech5-cover.tex lib.tex

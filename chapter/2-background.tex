@@ -1,9 +1,61 @@
 \chapter{Background}
 
+% [ ] What would it mean if ECH were made a default in popular clients like Google Chrome, Firefox?
+
+% [ ] Google and China play Chicken (Comic illustration?)
+\section{Internet Censorship}
+
+RFC 9505 \citep{rfc9505} names three actions taken by censors: prescription, identification, and interference.
+
+Prescription is the process of determining what to censor, and there is little that can
+be done on the technical front to influence the prescription process,
+but identification and interference can be circumvented by technical means.
+Identification is the process of classifying specific traffic,
+for instance when \ac{ESNI} is
+classified based on the presence of its \var{ExtensionType} identifier.
+Interference is when a censor participates in
+active measures to curtail or block previously identified traffic and/or channels.
+
+In this work we are concerned with designing
+an identification-resistant \ac{SECH} protocol in the hopes that 
+preventing identification will mitigate interference.
+
+Censorship is usually facilitated by a centralisation of control of some aspect of the Internet, e.g. the name servers, Internet Exchange Points, CAs. But censorship can be (and is) implemented by service providers at the endpoint, such as in search engine results or social media.
+
+Censorship is easier and cheaper when data are not encrypted. When data are encrypted a censor might decide to over-block,
+i.e. block all communications on a given channel
+in order to achieve the blocking of
+particular material believed to be
+carried on that channel.
+The greater a censor's abitility to identify traffic accurately,
+the more granular can be the interference.
+Limiting a censor's ability to identify traffic
+causes a censor to require a greater degree of over-blocking in order
+to achieve its prescribed goals.
+
+Residual censoring is when a censor blocks traffic between two endpoints as a sort of punishment after identifying communications between the two endpoints.
+Non-technical punishments for attempts to circumvent censorship, such as social credit reductions, imprisonment, confiscation can also be employed.
+
+Port blocking can be used to target specific protocols, such as \ac{HTTPS}, possibly forcing netizens to fall back to \ac{HTTP}.
+Using \ac{HTTP} instead of \ac{HTTPS} facilitates more fine grained and less expensive identification and interference.
+
+% TODO: repetition
+In this work we are considering the scenario where \ac{TLS} 1.3 is not generically blocked, i.e. port blocking is not in place,
+but where channels identified by \ac{SNI}/\ac{ALPN} may be blocked.
+
+% [ ] Note that censors often employ a wide range of technical measures to block the same thing (e.g. IP/TCP header-based blocking and DPI and residual consoring and DNS poisoning), meaning that circumventing one of those measures might not be enough to gain access to the blocked comms channel.
+
+% [ ] \subsection{Active Probing}
+
+% [ ] what is active probing https://kevinbock.phd/pdf/2023-usenix-fully-encrypted-traffic.pdf
+
+% [ ] active probing against SSH tunnels, Shadowsocks tunnels \cite{wu2023great}
+
+
 \section{TLS}
 
 % [x] TLS the most popular way to protect internet connections
-\ac{TLS}, being the underlying confidentiality/authentication protocol for \ac{HTTPS},
+\ac{TLS}, being the underlying confidentiality/integrity/authentication protocol for \ac{HTTPS},
 is probably the most widely used protocol for securing Internet traffic today.
 The specifications for \ac{TLS} have been developed and published by the \ac{IETF},
 which is an open community dedicated to developing technologies to make the Internet better
@@ -11,14 +63,14 @@ for Internet users.
 
 % [ ] TODO: diagram of the client/server and the insecure channel
 
-Apart from confidentiality and authentication one of the central
+Apart from confidentiality, integrity, and authentication one of the central
 design goals for \ac{TLS} has been scalability.
 An important aspect of \ac{TLS}'s scalability is the ability
 for \ac{TLS} servers to operate statelessly.
-And another aspect of the scalability story is how
+Another aspect of the scalability story is how
 authentication is achieved using a chain-of-trust model.
 These aspects are arguably secondary to the confidentiality and authentication
-requirements of \ac{TLS} but should still need to be taken into consideration
+requirements of \ac{TLS} but still need to be taken into consideration
 when designing extensions to \ac{TLS}.
 
 % \subsection{Early Years of SSL}
@@ -31,8 +83,8 @@ Message confidentiality is the property that allows a user
 to send their payment card details to exactly one recipient and no-one else.
 Message authenticity gives the user a gaurantee that the message
 was sent to/from the appropriate party.
-And message integrity ensures that a transaction of say €20 isn't
-maliciously or accidentally modified into a transaction of €2000.
+And message integrity ensures that a transaction of say \texteuro 20 isn't
+maliciously or accidentally modified into a transaction of \texteuro 2000.
 
 Shortly after the release of Netscape's first web browser, Mosaic,
 Netscape finished the design of \ac{SSL} 1.0 in 1994,
@@ -40,29 +92,29 @@ but this design was never shipped in a commercial product
 due to the discovery of various security flaws.
 In late 1994 Netscape released Netscape Navigator which
 came equipped with \ac{SSL} 2.0.
-Microsoft joined the browser battles in 1995 with the release
+Microsoft joined the browser wars in 1995 with the release
 of Internet Explorer, and developed an \ac{SSL} alternative
 called \ac{PCT}.
 In late 1995 \ac{SSL} 3.0 was released, which was the last
-major version update to under the moniker \ac{SSL}.
+major version update under the moniker \ac{SSL}.
 
 In 1996 the \ac{IETF} formed the \ac{TLSWG} with
 the responsibility to standardize a transport layer security
 protocol.
 The basis for that work was \ac{SSL} 3.0, but
 under the direction of the \ac{IETF} it was decided to rebrand as \ac{TLS}.
-\ac{TLSWG} has since overseen the standardisation of
+The \ac{TLSWG} has since overseen the standardisation of
 \ac{TLS} and \ac{DTLS} versions 1.0, 1.1, 1.2, and 1.3.
 
 \ac{TLS} 1.3 is a major update over \ac{TLS} 1.2, despite
 the name indicating only a minor update.
-\ac{TLS} 1.3 introduces new functionality such as 0\ac{RTT} data,
+\ac{TLS} 1.3 introduces new functionality such as 0 \ac{RTT} data,
 reduces the number of round-trips needed to perform the handshake (in most cases),
 demands \ac{AEAD}-type symmetric ciphers in all cipher suites,
 and deprecates the use of static \ac{DH} in favor of \ac{DHE},
 among other changes.
 This is to say \ac{TLS} 1.2 and 1.3 are significantly different protocols.
-In this dissertation we aim to design extensions to \ac{TLS} 1.3.
+In this dissertation we design extensions to \ac{TLS} 1.3 only.
 Our extensions will not support earlier \ac{TLS} versions,
 however, it is often the case that
 a \ac{TLS} server supports multiple versions simultaneously.
@@ -71,7 +123,7 @@ to prevent downgrade attacks, i.e. attacks where
 a client and server end up negotiating a lower protocol
 version than the maximum mutually supported version.
 Our protocols need to be designed in a way that does
-not interfere with protections against downgrade attacks.
+not interfere with protections against downgrade attacks. % [ ] TODO: note this in evaluation
 
 % [ ] to achieve this we need the credit card details to be confidential, but the client (who owns the credit card) also needs to know they are sending their details to a legitimate server (authentication) 
 
@@ -79,31 +131,36 @@ not interfere with protections against downgrade attacks.
 
 % \subsection{Standardising TLS}
 
+
 % [x] OSI transport layer vs TCP/IP transport layer
-The term `transport layer' in \ac{TLS} is a cognate of the \ac{OSI} model's 'transport layer', which is a conceptual division of the roles/responsibilities of different pieces of software, and which helps in identifying appropriate levels of abstraction for programming models/interfaces.
-An alternative to the \ac{OSI}'s seven layer model is the simpler 4 layer \ac{TCP}/\ac{IP} model consisting
+The term `transport layer' in \ac{TLS} is a cognate of the \ac{OSI} model's `transport layer', which is a conceptual division of the roles/responsibilities of different pieces of software, and which helps in identifying appropriate levels of abstraction for programming models/interfaces.
+An alternative to the \ac{OSI}'s seven layer model is the simpler 4 layer TCP/IP model consisting
 of the network access, internet, transport, and application layers.
 \ac{TLS} provides functionality for transport control (message ordering, connection maintenance),
-as well as session maintenance, data compression and encryption,
-which in terms of the \ac{OSI} model corresponds to all three of the transport, session, and presentation layers.
-Ideally, a protocol that runs at the transport layer should leverage
-the contracts offered by services of the superior layer,
-and consume the services of the inferior layer,
-while treating data from those layers as opaque. % TODO: a bit dodgy
+as well as session maintenance, data compression and encryption
+In terms of the \ac{OSI} model these functionalities correspond to all three of the transport, session, and presentation layers.
+Ideally, a protocol that runs at the transport layer should offer services to the superior application layer,
+and consume the services of the inferior network layer,
+while treating data from those layers as opaque.
+In particular, the fact that that \ac{TLS} does not treat the \ac{SNI} and \ac{ALPN} list as opaque is a violation of OSI model.
 
-% [x] TCP and UDP
-Two important protocols in the transport layer are \ac{TCP} and \ac{UDP}, and \ac{TLS} (or \ac{DTLS} respectively) wraps the TCP and UDP protocols providing confidential/authenticated versions of these protocols. IP packets are not large enough to transfer arbitrary messages in a single packet, so messages are broken up into sequences of packets, and the transport layer protocols are concerned with how the larger messages are split up into IP packets, as well as trade-offs between reliability, latency, and network congestion (TCP prioritises complete delivery of the message in the proper order, whereas UDP prioritises low latency).
+
 
 % [x] TLS API similar to socket API
 % The \ac{API} for establishing a \ac{TLS} connection is designed to be as similar as possible to that of establishing a \ac{TCP} connection, or at least to not be gratuitously different. Some differences are that there are additional interfaces for configuring authentication and new kinds of failures that can occur with \ac{TLS} connection which are not possible for a \ac{TCP}.
 
 % [x] pure separation of OSI model layers
-If we were to adhere strictly to the \ac{OSI} model then all information pertaining to other layers of the \ac{OSI} model (in particular for our purposes application, presentation, and session) would be opaque from the perspective of (and encrypted under) TLS (i.e. we would have a pure separation of the \ac{OSI} layers), but over the years \ac{TLS} has incorporated various application-level information in extensions (\ac{SNI}, \ac{ALPN}) which are potentially used to reverse proxy routing (i.e. which
+If we were to adhere strictly to the \ac{OSI} model then all information pertaining to other layers of the \ac{OSI} model (in particular for our purposes application, presentation, and session) would be opaque from the perspective of (and encrypted under) TLS (i.e. we would have a pure separation of the \ac{OSI} layers), but over the years \ac{TLS} has incorporated application-level information in extensions (\ac{SNI}, \ac{ALPN}) which are potentially used in reverse proxy routing (i.e. which
 backend server should terminate the \ac{TLS} connection) and are thus not encrypted.
+
+% [x] TCP and UDP
+Two important protocols in the transport layer are \ac{TCP} and \ac{UDP}. \ac{TLS} (or \ac{DTLS} respectively) wraps the \ac{TCP} and \ac{UDP} protocols providing confidential/authenticated versions of these protocols. IP packets are not large enough to transfer arbitrary messages in a single packet, so messages are broken up into sequences of packets, and the transport layer protocols are concerned with how the larger messages are split up into IP packets, as well as trade-offs between reliability, latency, and network congestion (TCP prioritises complete delivery of the message in the proper order, whereas UDP prioritises low latency).
+Our work is concerned with \ac{TCP}-based \ac{TLS},
+although extending our designs to \ac{UDP}-based connections may be of interest in future.
 
 \subsection{TLS 1.3}
 
-\ac{RFC} 8446 (\citep{rfc8446}) which specifies the current recommended version of \ac{TLS} (1.3)
+The \ac{RFC} 8446 \citep{rfc8446} which specifies the current recommended version of \ac{TLS} (1.3)
 was published in 2018 after about 4 years
 of active development.
 The first draft of \ac{TLS} 1.3 was published
@@ -156,7 +213,8 @@ It is not necessarily any one formal analysis or proof
 of \ac{TLS} 1.3's security that should give us confidence in its
 security, but rather the fact that the combined effort of
 many independent researchers has failed to reveal
-any fatal flaws.
+fundamental flaws.
+But our confidence could be shattered at any moment!
 
 % [x] a common flow on the web is for a browser session to establish many concurrent connections, and some features of TLS 1.3 facilitate performing these many connections scalably, 0-RTT (careful!), session tickets/resumption, stateless tickets
 \ac{TLS} was designed for the web, and some of its
@@ -168,7 +226,7 @@ file, which in turn references lots of other resources which need
 to be loaded to render the page properly.
 When fetching these resources over \ac{TLS} this means it is very
 common to establish an initial connection to the server
-quickly followed by 10s or hundreds of connections to the same server.
+quickly followed by tens or hundreds of connections to the same server.
 The \ac{TLS} 1.3 \ac{PSK} mechanism helps to reduce
 the amount of bandwidth needed for each of the subsequent connections.
 It turns out that the \ac{PSK} mechanism will be useful in the
@@ -176,7 +234,7 @@ design of our \ac{SECH} protocols.
 
 \subsection{CAs and the Web PKI}
 \ac{TLS} 1.3 offers two mechanisms to achieve authentication;
-certificate based authentication and the external \ac{PSK} authentication.
+certificate based authentication and external \ac{PSK} authentication.
 Certificate based authentication is the standard way
 to authenticate servers on the web.
 This certificate based scheme involves at least three parties; the client
@@ -193,13 +251,13 @@ the servername, e.g. \var{example.com}, is owned/controlled by the server.
 The certificate contains a servername, a public key
 and the \ac{CA}'s cryptographic signature.
 The cryptographic signature ensures that if the server
-were to tamper with its signature, e.g. by changing the servername or the public
+were to tamper with its certificate, e.g. by changing the servername or the public
 key,
 then a client would be able to detect this tampering.
 The private key associated with the certificate's public key is controlled by the server.
 
 In \ac{TLS} the server authenticates itself by providing the certificate
-as well as a cryptographic signature (in the \ac{CV} message) using the private key associated with the certificate. The signature digests the transcript of the \ac{TLS} handshake messages, which means the signature serves as proof that the server currently
+as well as a cryptographic signature (in the \ac{CV} message) using the private key associated with the certificate. The signature digests the transcript of the \ac{TLS} handshake messages, which means the signature serves as proof that the server {\em currently}
 possesses the corresponding private key,
 and that the \ac{CV} message has not been replayed from some other session.
 
@@ -211,7 +269,7 @@ For \ac{SECH} we are proposing that these random values
 can be replaced (in full or in part) with non-random
 encrypted values or cryptographically hashed values.
 A potential danger of our approach is that it could weaken
-or destroy \ac{TLS} protections against replay.
+or destroy \ac{TLS} protections against \ac{CV} message replay.
 
 The Web \ac{PKI} is a constellation of actors
 and organisations that facilitates
@@ -244,7 +302,7 @@ in web browsers, is that the typical user likely never audits the list of
 trusted root \ac{CA}s,
 so implicitly the user places their trust in the
 client application manufacturer,
-which in turn decides which \ac{CA}s to trust.
+who in turn decides which \ac{CA}s to trust.
 
 % [x] CAs and the Web PKI are all about server authentication, linking server names to trusted servers
 
@@ -253,15 +311,16 @@ The \ac{SNI} extension to \ac{TLS} may be included in the \ac{CH} message, and i
 
 % [ ] TODO: diagram of co-location
 
-As \cite{hoang-2020-assessing-privacy-benefits-sni-encryption} have noted, however, the domain name reveals semantic information about the internet user. For example an on-path network observer could gain information
+As \cite{hoang-2020-assessing-privacy-benefits-sni-encryption} have noted, however, the domain name reveals semantic information about the user.
+For example an on-path network observer could gain information
 based on the \ac{SNI}
 about a users health (\var{hiv.gov}, \var{cancer.gov}), religion (\var{islamicity.org}, \var{quran.com}), gender identity (\var{lgbt.foundation}, \var{gaycenter.org}), and more (examples after \cite{hoang-2020-assessing-privacy-benefits-sni-encryption}).
 
 When the \ac{SNI} extension was first defined and gaining adoption it was reasonable not to consider it as an important privacy leak.
 For one, the \ac{SNI} at the time could usually be accurately inferred from the network address.
-It is necessary to send the network address in the clear in order for the \ac{IP} to work.
+It is necessary to send the network address in the clear in order for \ac{IP} routing to work.
 These factors meant that securing confidentiality of the \ac{SNI} would have done almost nothing for the privacy of the user.
-Recently though, \cite{hoang-2020-assessing-privacy-benefits-sni-encryption} studied the relationship between IPv4 address
+Recently, \cite{hoang-2020-assessing-privacy-benefits-sni-encryption} studied the relationship between IPv4 address
 and server/domain names on the Internet and found that for many websites
 (around 20\%) there is still a one-to-one mapping from IPv4 to domain name,
 which an on-path observer can infer.
@@ -290,8 +349,8 @@ of application-layer protocol to use once the handshake has completed.
 For instance, a client might prefer to use \ac{HTTP}/2, but also supports \ac{HTTP} 1.1.
 The \ac{ALPN} extension value for this case is presented in Listing~\ref{lst:alpn-example-h2}.
 
-\begin{listing}
-\begin{Verbatim}[frame=single]
+\begin{listing}[hb]
+\begin{Verbatim}[frame=single, fontsize=\small]
 Handshake Type: Client Hello (1)
 ...
 Extension: application_layer_protocol_negotiation (len=14)
@@ -316,7 +375,7 @@ Extension: application_layer_protocol_negotiation (len=5)
         ALPN Next Protocol: h2
 \end{Verbatim}
 \captionsetup{width=0.8\linewidth}
-\caption[Example ALPN Value]{\label{lst:alpn-example-h2}Example \ac{ALPN} value where the client prefers \ac{HTTP}/2 but also supports \ac{HTTP}/1.1}
+\caption[Example ALPN Value]{\label{lst:alpn-example-h2}Example \ac{ALPN} value where the client prefers \ac{HTTP}/2 but also supports \ac{HTTP}/1.1. The server selects \ac{HTTP}/2 in its \ac{SH} message.}
 \end{listing}
 
 The \ac{ALPN} serves two purposes: 1. identity selection, and 2. fewer round-trips.
@@ -346,7 +405,7 @@ do not increase the number of round-trips compared to regular \ac{TLS}.
 % [x] How the SNI is used in censorship (DPI) and pervasive monitoring.
 
 \cite{chai2019importance} were able to detect \ac{SNI} filtering by the \ac{GFW} by leveraging the fact that the \ac{GFW}'s censorship is bidirectional (traffic whose source is outside the \ac{GFW}, and whose destination is inside, is filtered. Similarly vice versa).
-\cite{chai2019importance} observed domain censorship by way of injected \acp{RST} packets.
+\cite{chai2019importance} observed domain censorship by way of injected \ac{RST} packets.
 The censorship was triggered by the presence of block-listed servernames in the \var{server\_name} extension of the \ac{TLS} \ac{CH}.
 It was found that 21,446 sites (of 1,000,000 tested) suffered \ac{SNI} filtering,
 but that \ac{SNI} filtering was in almost all cases used in conjunction with another censorship mechanism
@@ -371,22 +430,23 @@ known to most as the \ac{GFW} \citep{chandel-2019-great-firewall}.
 \cite{guan2021largescalemeasurementofesni} measured \ac{ESNI} deployment from June to August 2020 and found that the protocol was gaining significant adoption, with 0.73\% of global sites and 11.86\% of the `Alexa~Top~1~Million' sites offering \ac{ESNI}. \cite{guan2021largescalemeasurementofesni} assess that \ac{ESNI} adoption was primarily driven by Internet companies, Cloudflare and Mozilla in particular, which is in indication of market interest in the added privacy.
 
 One of the downsides of a stealthy variant of \ac{ECH} will be that this kind of
-empirical measurement of employment and adoption will not be possible.
+empirical measurement of deployment and adoption will not be possible.
 By design we should never know exactly how widespread \ac{SECH} adoption is.
 
 % TODO REPETITION OVER-BLOCKING
-The \ac{ESNI} extension to \ac{TLS} (which has since evolved into \ac{ECH}) uses public key cryptography to encrypt the server name in a new extension called the \var{encrypted\_server\_name} which was distinguised by the \var{0xffce} \var{ExtensionType} identifier.
-This extension type identifier is sent in the clear (in the \var{ClientHello}), and thus it is trivial for a censor to block all \ac{ESNI} traffic.
+The \ac{ESNI} extension to \ac{TLS} (which has since evolved into \ac{ECH}) uses public key cryptography to encrypt the servername in a new extension called \var{encrypted\_server\_name} which was distinguised by the \var{0xffce} \var{ExtensionType} identifier.
+This extension type identifier is sent in the clear (in the \ac{CH}).
+It is thus trivial for a censor to block all \ac{ESNI} traffic.
 However, when the servername is protected with \ac{ESNI} it is not possible for the censor to surgically block just one domain name on a given channel, the censor is forced to decide whether to block all servernames on that channel, or none of them.
 \ac{ESNI} was designed with the hope that the economic cost of over-blocking sites
 (by blocking all \ac{ESNI}-based connections)
 would be a strong enough incentive to cause censors not to block any \ac{ESNI} traffic.
-In a global measurement experiment \cite{chai2019importance} did not report any ESNI blocking,
+In a global measurement experiment \cite{chai2019importance} did not report any \ac{ESNI} blocking,
 but shortly thereafter,
 on the 20th of July 2020 there were reports of \ac{ESNI} blocking by the \ac{GFW}.
 \cite{bock2020censorship} confirmed this censorship was occurring based on the \var{0xffce} identifier in the \var{encrypted\_server\_name} extension.
 \cite{bock2020censorship} found that by changing the \ac{ESNI} extension ID from,
-e.g., \var{0xffce} to \var{0x7777}, \ac{ESNI} would no longer trigger blocking by the \ac{GFW}.
+e.g., \var{0xffce} to \var{0x7777} \ac{ESNI} would no longer trigger blocking by the \ac{GFW}.
 They found that omission of the \ac{SNI} did {\em not} trigger blocking by the \ac{GFW}.
 However, changing the \ac{ESNI} extension ID is not a sustainable or long-term circumvention technique,
 it merely allowed \cite{bock2020censorship} to ascertain
@@ -417,7 +477,7 @@ In \ac{ECH} more parts of the \ac{CH} message
 can be encrypted compared to \ac{ESNI},
 including \ac{TLS} extensions,
 which offers flexibility for extending
-\ac{TLS}\ac{ECH} in future with privacy-sensitive data
+\ac{TLS}/\ac{ECH} in future with privacy-sensitive data
 in the first flight of client messages.
 
 The design goal ``Don't stick out'' is addressed
@@ -427,8 +487,9 @@ a method of mitigating network ossification due to
 misbehaving protocol implementations.
 It involves replacing variable \ac{TLS} message field values with random values to discourage
 implementations relying on the presence or absence
-of the values to function.
-A \ac{GREASE}'d \ac{ECH} handshake is one where the \varech{} extension is present but with the \var{config\_id} and the \var{payload} field, which usually contains the encrypted \ac{ECHI}, replaced with random values.
+of specific values.
+A \ac{GREASE}'d \ac{ECH} handshake is one where the \varech{} extension is present but with the \var{config\_id} and the \var{payload} field replaced with random values.
+The \var{payload} field contains the encrypted \ac{ECHI} for actual \ac{ECH}.
 From the perspective of a passive observer \ac{GREASE}'d \ac{ECH} is designed to be
 indistinguishable from regular \ac{ECH}.
 However, the first purpose mentioned by \cite{esni} for the \ac{GREASE}'d \ac{ECH} is actually
@@ -458,56 +519,6 @@ For example, \var{google.com} is censored by the \ac{GFW}.
 Could Google expand its consumer base to
 China's population by getting behind the roll out of \ac{ECH}?
 
-% [ ] What would it mean if ECH were made a default in popular clients like Google Chrome, Firefox?
-
-% [ ] Google and China play Chicken (Comic illustration?)
-\section{Internet Censorship}
-
-RFC 9505 \citep{rfc9505} names three actions taken by censors: prescription, identification, and interference.
-
-Prescription is the process of determining what to censor, and there is little that can
-be done on the technical front to influence the prescription process,
-but identification and interference can be circumvented by technical means.
-Identification is the process of classifying specific traffic,
-for instance when \ac{ESNI} is
-classified based on the presence of its \var{ExtensionType} identifier.
-Interference is when a censor participates in
-active measures to curtail previously identified traffic.
-
-In this work we are concerned with designing
-an identification-resistant \ac{SECH} protocol in the hopes that 
-preventing identification will mitigate interference.
-
-Censorship is usually facilitated by a centralisation of control of some aspect of the Internet, e.g. the name servers, Internet Exchange Points, CAs, but censorship can be (and is) also implemented by service providers such as in Google search results, social media (e.g. Donald Trump's Twitter ban) etc.
-
-Censorship is easier and cheaper when data are not encrypted. When data are encrypted a censor might decide to over-block,
-i.e. block all communications on a given channel
-in order to achieve the blocking of
-particular material believed to be
-carried on that channel.
-The greater a censor's abitility to identify traffic accurately,
-the more granular can be the interference.
-Limiting a censor's ability to identify traffic
-causes a censor to require a greater degree of over-blocking in order
-to achieve its prescribed goals.
-
-Residual censoring is when a censor blocks traffic between two endpoints as a sort of punishment after identifying communications between the two endpoints.
-Non-technical punishments for attempts to circumvent censorship, such as social credit reductions, imprisonment, confiscation can also be employed.
-
-Port blocking can be used to target specific protocols, such as \ac{HTTPS}, possibly forcing netizens to fall back to \ac{HTTP}.
-Using \ac{HTTP} instead of \ac{HTTPS} facilitates more fine grained and less expensive identification and interference.
-
-% TODO: repetition
-In this work we are considering the scenario where \ac{TLS} 1.3 is not generically blocked,
-but where domains are possibly blocked based on the \ac{SNI}.
-
-% [ ] Note that censors often employ a wide range of technical measures to block the same thing (e.g. IP/TCP header-based blocking and DPI and residual consoring and DNS poisoning), meaning that circumventing one of those measures might not be enough to gain access to the blocked comms channel.
-
-% [ ] \subsection{Active Probing}
-
-% [ ] what is active probing https://kevinbock.phd/pdf/2023-usenix-fully-encrypted-traffic.pdf
-
-% [ ] active probing against SSH tunnels, Shadowsocks tunnels \cite{wu2023great}
 
 \section{Closely Related Work}
 
@@ -519,14 +530,14 @@ TOR, \acp{VPN}, or shadowsocks.
 
 \cite{rfc8744-issues} discuss briefly the idea of tunnelling \ac{TLS} or \ac{HTTPS} in another \ac{TLS} connection. The idea is that the client first establishes a \ac{TLS} connection to the client-facing server. Then the client conducts a second \ac{TLS} handshake, but with handshake messages (including the \var{ClientHello}) being protected with the application traffic secrets of the first handshake.
 
-One of \citeauthor{rfc8744-issues}'s arguments against this design is that it involves double encryption of every packet. When the client sends application data it is first encrypted with the backend server's key, and then again with the client-facing server's key. The client-facing server unwraps the first layer of encryption, and the backend server unwraps the second recovering the plaintext. The second argument against \ac{HoT} is the requirement for the client-facing server to decrypt all relayed application data. These aspects are considered too onerous, i.e. it would cause excessive latency for the end-user, it would roughly double the expense of operating a client-facing server, and it would increase the server's vulnerability to \ac{DoS}. The issue of increasing the expense for the client-facing server is important, because there is only weak economic incentive for large \acp{CDN} and service providers to offer \ac{SNI} encryption, so a significant increase in operational cost caused by \ac{SNI} encryption could destroy its possibility of widespread deployment.
+One of \citeauthor{rfc8744-issues}'s (\citeyear{rfc8744-issues}) arguments against this design is that it involves double encryption of every packet. When the client sends application data it is first encrypted with the backend server's key, and then again with the client-facing server's key. The client-facing server unwraps the first layer of encryption, and the backend server unwraps the second recovering the plaintext. So \ac{HoT} requires the client-facing server to decrypt all relayed application data. These aspects are considered too onerous, i.e. it would cause excessive latency for the end-user, it would roughly double the expense of operating a client-facing server, and it would increase the server's vulnerability to \ac{DoS}. The issue of increasing the expense for the client-facing server is important, because there is only weak economic incentive for large \acp{CDN} and service providers to offer \ac{SNI} encryption, so a significant increase in operational cost caused by \ac{SNI} encryption could destroy its possibility of widespread deployment.
 
 One of the good properties of \ac{HoT} is that the client authenticates both the client-facing server and the backend server, which mitigates \ac{MITM} attacks. This would also allow the client to apply more granular policies of how to behave depending on the trust level endowed to the client-facing server.
 
-One of the key challenges I see with \ac{HoT} is that the second (inner) handshake may be detectable via traffic analysis. The sequence of messages of the inner handshake, although encrypted, will by default have an identifiable fingerprint due to the consistent pattern of messages: \var{ClientHello}, \var{ServerHello}..\var{Finished}, \var{Finished}. This tick-tock-tick pattern of messages might stand out quite a bit on the Internet, since it is very common for a Web request to consist of just tick-tock, e.g. a \ac{HTTP} request and response.
+One of the key challenges we see with \ac{HoT} is that the second (inner) handshake may be detectable via traffic analysis. The sequence of messages of the inner handshake, although encrypted, will by default have an identifiable fingerprint due to the consistent pattern of messages: \var{ClientHello}, \var{ServerHello}..\var{Finished}, \var{Finished}. This tick-tock-tick pattern of messages might stand out quite a bit on the Internet, since it is very common for a Web request to consist of just tick-tock, e.g. a \ac{HTTP} request and response.
 Obfuscating the existence of the inner handshake might require ongoing adaptation to other Internet traffic, which is a serious challenge to attaining a completely stealthy deployment.
 
-The focus of this work is to purse an \ac{SNI} encryption scheme that does
-require additional parties other than the client, client-facing server, and backend server,
-and also which does not entail additional handshake round-trips compared to regular \ac{TLS}.
+The focus of this work is to pursue an \ac{SNI} encryption scheme that does not
+require additional parties other than the client, client-facing server, and backend server (as is the case for TOR/\ac{VPN}s),
+and also which does not entail additional handshake round-trips compared to regular \ac{TLS} (as is the case for \ac{HoT}).
 For these reasons we do not discuss the alternative tunnel approaches further.

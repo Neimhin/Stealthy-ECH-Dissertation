@@ -14,11 +14,13 @@ attesting to the security of the
 proposed protocols.
 
 The \ac{TLS} 1.3 protocol enables secure connections between
-a client and server over an insecure medium such as the internet.
+a client and server over an insecure medium such as the Internet.
 In particular \ac{TLS} aims to provide confidentiality of messages
 and authentication of the communicating parties (either server-only authentication
-or mutual authentication). One of the most popular applications of \ac{TLS} is
-in the \ac{HTTPS} protocol, but \ac{TLS} has many use-cases beyond \ac{HTTPS}.
+or mutual authentication).
+One of the most popular applications of \ac{TLS} is
+in the \ac{HTTPS} protocol,
+but \ac{TLS} has many use-cases beyond \ac{HTTPS}.
 
 \cite{rfc7258-pervasive-monitoring} declared that \ac{PM} is a ``widespread attack on privacy'', and
 that ``the \ac{IETF} will work to mitigate \ac{PM}''.
@@ -27,14 +29,58 @@ deployed in a way that is vulnerable
 to \ac{PM}, in particular due to
 information leaked in the cleartext \ac{SNI} and
 \ac{ALPN} extensions.
-Also, the \ac{SNI} is a well-known factor used
-by censors to discriminate connections to be blocked. The \ac{ALPN} also has the potential
+The \ac{SNI} is a well-known factor used
+by censors to discriminate connections to be blocked.
+The \ac{ALPN} also has the potential
 to be abused by censors.
-
 Both \ac{PM} and censorship are harmful to Internet users.
 
+The draft \ac{ECH} protocol \citep{esni} is an
+extension to \ac{TLS} which allows the \ac{SNI}, \ac{ALPN},
+and other values to kept confidential.
+However, it is trivial for an on-path attacker
+campaign to distinguish between \ac{ECH} enabled \ac{TLS} connections, and regular \ac{TLS} connections,
+i.e. \ac{ECH} is not stealthy.
+In other words the \ac{ECH} protocol does not offer \ac{PC}.
+
 Many cases of aggressive state-sponsored Internet censorship exist and persist today.
-It is sometimes also the case that states willing to aggressively censor are also willing to employ violence and other forms of coercion to achieve their goals.
+It is sometimes the case that states willing to aggressively censor the Internet
+are also willing to employ violence and other forms of coercion/influence to achieve their goals.
+The act of trying to circumvent censorship
+can attract punishment.
+Therefore the fact that \ac{ECH} is not stealthy
+is a deterrent to protocol adoption for people suffering such
+regimes.
+A successful \ac{SECH} protocol would be impossible for
+a censor to identify without control of the client or server device.
+This guarantee of \ac{PC} would make the protocol more
+attractive than \ac{ECH} for a user who
+wishes to circumvent censorship but
+needs to also hide the fact that they are attempting to evade
+detection.
+
+There is a risk that a widespread deployment of \ac{ECH} will trigger powerful censors to block
+all \ac{ECH} connections,
+resulting in some
+degree of splintering of the Internet.
+
+The social and political aspects relating to the
+deployment of \ac{ECH}-like protocols are expansive,
+but this work is primarily an investigation of a {\em technical method}
+which could be used to mitigate or prevent \ac{PM} and censorship
+based on the \ac{SNI} and \ac{ALPN}.
+
+Our designs of \ac{SECH} turn out to have several
+disadvantages in comparison to \ac{ECH},
+arising from the prioritisation of maintaining \ac{PC}.
+In particular, under various failure cases our \ac{SECH}
+protocols
+require more bandwidth and chattiness between the client
+and server to maintain stealth.
+Also, our designs are less flexible in terms of
+the underlying cipher suites that can be used for
+the servername encryption.
+
 
 % [ ] even when censorship is not present argue that pervasive monitoring/lack of privacy are bad for individuals and society
 
@@ -42,17 +88,14 @@ It is sometimes also the case that states willing to aggressively censor are als
 
 % [ ] slippery slope from counter-terrorism to plain-old spying for illegitimate purposes (political sway, propaganda, commerce etc.)
 
-This work is an investigation of a technical method
-intended to mitigate or prevent \ac{PM} and censorship
-based the \ac{SNI} and \ac{ALPN}.
 
 % \section{ECH}
-The \ac{ECH} extension to \ac{TLS}, under development
-by \cite{esni},
-is a promising proposal
-intended to provide greater privacy for \ac{TLS} users.
-However, \ac{ECH} falls short in one of its
-design goals: ``Don't stick out''.
+%The \ac{ECH} extension to \ac{TLS}, under development
+%by \cite{esni},
+%is a promising proposal
+%intended to provide greater privacy for \ac{TLS} users.
+%However, \ac{ECH} falls short in one of its
+%design goals: ``Don't stick out''.
 
 While the \ac{ECH} proposal provides a mechanism
 by which it may in future achieve its goal
@@ -61,19 +104,17 @@ it will take time to see if that mechanism
 will be deployed to the extent where it becomes effective.
 Also, \ac{ECH} is designed in such a way that it
 is trivial for an on-path network observer to
-detect that either \ac{ECH} or \ac{GREASE} \ac{ECH}
+detect that one of \ac{ECH} or \ac{GREASE} \ac{ECH}
 is being used.
 This means that it is equally trivial for a powerful
-censore to block deployments of either \ac{ECH} or \ac{GREASE} \ac{ECH}.
-
-There is a risk that a widespread deployment of \ac{ECH} will trigger powerful censors to block
-all \ac{ECH} connections, resulting in some
-degree of splintering of the Internet.
+censor to block deployments of \ac{ECH}.
+The purpose of \ac{GREASE} is that it make blocking only true \ac{ECH}, while allowing
+\ac{GREASE} \ac{ECH}, difficult for the censor.
 
 % [ ] the ECH extension to TLS looks promising as a privacy enhancement but entails a risk of splintering the internet because of how much it 'sticks out'
 
 The basic idea behind \ac{ECH} is to use \ac{HPKE} to encrypt a so-called \ac{CHI},
-with the ciphertext of the \ac{CHI} in a \ac{TLS} extension.
+with the encrypted \ac{CHI} in a \ac{TLS} extension.
 Encrypting with a public key, which can be distributed to the client before the \ac{ECH} handshake is initiated,
 means that the secret inner \ac{SNI} and \ac{ALPN} values can be sent in the client's
 first flight of messages, whereas the first encrypted messages in a normal \ac{TLS} 1.3 handshake
@@ -84,83 +125,86 @@ and the \ac{ECH} protocol appears to achieve most of those goals,
 but deprioritises others.
 
 The privacy-benefit offered by \ac{ECH} is relative to a so-called anonymity set.
-A surveiller that observes an \ac{ECH} connection is able to narrow down the possible
+A surveillance apparatus that observes an \ac{ECH} connection is able to narrow down the possible
 values of the inner \ac{SNI} to that anonymity set, but no further.
 Therefore, the greater the size of the anonymity set
 the greater the privacy-benefit for the user.
 If a censor wishes to block access to a particular website \var{banned.com},
 but that website is protected under \ac{ECH} relative to an anonymity set,
-then the censor is forced to over-block the entire anonymity,
+then the censor is forced to over-block all websites in the anonymity set,
 or not block \var{banned.com} at all.
 
 One of the assumptions that steered the design of \ac{ECH} is that
 censors will try to avoid over-blocking for various reasons,
 in order to avoid harm to economic activity and growth,
 or to avoid social unrest etc., and that the incentive
-to avoid over-blocking will be stronger than the incentive block in enough cases.
+to avoid over-blocking will be stronger than the incentive to block in enough cases.
 
 On the other hand censors might purposefully over-block in order to disincentivise the deployment of new (privacy enhanced/censorship resistant) protocols.
 The design of \ac{ECH} unfortunately leaves the ball in the censor's court;
 will they over-block or won't they?
+An \ac{SECH} protocol which is indistinguishable from
+regular \ac{TLS} has the implication that in order
+to completely block \ac{SECH} the censor must
+block all \ac{TLS} communications,
+which would essentially disable the web as we know it today
+for affected users.
 
-On the global stage privacy enhancement and censorship resistance are sides of one coin,
-and we proceed under the tenet that is not appropriate to consider them separately from each other.
-Lesser privacy entails an increased capacity to censor.
+On the global stage privacy enhancement and censorship resistance are sides of one coin;
+lesser privacy entails an increased capacity to censor.
 
 % \section{Motivations for a stealthy variant of ECH}
 
-One of the motivations for designing a \ac{SECH} protocol is to
+An \ac{SECH} protocol should
 offer what we will call \ac{PC},
 which is when a surveillance system cannot distinguish whether or not
 a particular protocol is in use.
 In other words we treat the act of using a protocol itself as privacy-sensitive
 and aim to design a technical solution that can offer \ac{PC}.
 
-The goal then, is to design a version of \ac{ECH} that from
-the perspective of a surveillance system or active attacker is indistinguishable
-from regular \ac{TLS} 1.3.
+%The goal then, is to design a version of \ac{ECH} that from
+%the perspective of a surveillance system or active attacker is indistinguishable
+%from regular \ac{TLS} 1.3.
 The basic mechanism we will leverage to achieve this centres around
-the fact that (strongly) encrypted data is indistinguishable from
-a string of uniformly random bits from the perspective of someone
-who does not possess the decryption key.
+the fact that,
+from the perspective of someone
+who does not possess the decryption key,
+strongly encrypted data is very hard\footnote{Very hard in the sense that a huge number of samples are needed to distinguish between a set of ciphertexts and random strings.} to distinguish from
+a string of uniformly random bits.
 Additionally, there are several fields in the \ac{TLS}
 messages consisting of uniformly random bit strings or pseudo-random strings.
 By replacing these (pseudo)random fields with encrypted data we can send
 stealthy signals without an observer being able to tell whether the signal was sent or not.
 
-% Introduction to the material covered in the document.
+In Chapter~2 we expand on the history and properties of
+the \ac{TLS} and \ac{ECH} protocols,
+discuss Internet censorship and \ac{PM} concepts,
+and acknowledge some other viable approaches to
+circumvent censorship and surveillance based on the \ac{SNI}.
 
-% \section{Style of English}
-% \label{sec:StyleOfEnglish}
+In Chapter~3 we go into greater detail on how \ac{TLS}
+and \ac{ECH} work,
+including the underlying cryptographic primitives,
+and expand on the properties of encryption that
+make ciphertexts difficult to distinguish from random text.
+We then comb through the \ac{TLS} 1.3 specification
+to evaluate the quality of (pseudo)random fields in the messages
+which could be leveraged as cover for the \ac{SECH} payloads.
+And finally discuss the threat model for \ac{SECH}
+and types of attack that could be leveled against it.
 
-% Style of English
-% An impersonal style keeps the technical factors and ideas to the forefront of the discussion and you in the background. Try to be objective and quantitative in your conclusions. For example, it is not enough to say vaguely “because the compiler was unreliable the code produced was not adequate”. It would be much better to say “because the XYZ compiler produced code which ran 2-3 times slower than PQR (see Table x,y), a fast enough scheduler could not be written using this algorithm”. The second version is more likely to make the reader think the writer knows what he/she is talking about, since it is a lot more authoritative. Also, you will not be able to write the second version without a modicum of thought and effort.
+In Chapter~4 we describe our designs for \ac{SECH} in detail
+and report on the state of our implementations.
+We call versions of \ac{SECH} which don't assume a shared secret \ac{SECH} 1, and have neglected to provide a design for this.
+\ac{SECH} 2 assumes an out-of-band
+mechanism for establishing a shared symmetric encryption key. \ac{SECH} 3, like \ac{ECH}, is based on \ac{PKC}.
 
-% The following points are couple of {\it Do's \& Dont's} that I have noted down as feedback to reports over the years. The focus of this list is to encourage writers to be specific in writing reports - some of this is motivated by Strunk and White's The Elements of Style~(\cite{strunk}). Regarding reports that are submitted as part of a degree, examiners have to read and mark these reports - make it easy for these examiners to give good marks by following a number of simple points:
+In Chapter~5 we give further justification for the designs presented in
+Chapter~4.
+In particular we describe attacks against previous drafts of both \ac{ECH}
+and our \ac{SECH} designs, and describe how these attacks have been mitigated.
+We then discuss security and privacy considerations for the use of our \ac{SECH} protocols.
 
-% \begin{description}
-% 	\item [Acronyms:] Acronyms should be introduced by the words they represent followed by the acronym in capitals enclosed in brackets e.g. "...TCP (Transmission Control Protocol)..." $\Rightarrow$  "... Transmission Control Protocol (TCP)..."
-% 	\item [Contractions:] I would generally suggest to avoid contractions such as "I'd", "They've", etc in reports. In some cases, they are ambiguous e.g. "I'd" $\Rightarrow$ "I would" or "I had" and can lead to misunderstandings.
-% 	\item [Avoid "do":] Be specific and use specific verbs to describe actions.
-% 	\item [Adverbs:] Adverbs and adjectives such as "easily", "generally", etc should be removed because they are unspecific e.g. the statement "can be easily implemented" depends very much on the developer. 
-% 	\item [Articles:] "A" and "an" are indefinite articles; they should be used if the subject is unknown. "The" is a definite article; which should be used if a specific subject is referred to. For example, the subject referred to in "allocated by the coordinator" is not determined at the time of writing and so the sentences should be changed to "allocated by a coordinator".
-% 	\item [Avoid brackets:] Brackets should not be used to hide sub-sentences, examples or alternatives. The problem with this use of brackets is that it is not specific and keeps the reader guessing the exact meaning that is intended. For example "... system entities (users, networks and services) through ..." should be replaced by "... system entities such as users, networks, and services through ...".
-% 	\item [Figures:] Figures and graphs should have sufficient resolution; figures with low resolution appear blurred and require the reader to make assumptions.
-% 	\item  [Captions:] Use captions to describe a figure or table to the reader. The reader should not be forced to search through text to find a description of a figure or table. If you do not provide an interpretation of a figure or table, the reader will make up their own interpretation and given Murphy's law, will arrive at the polar opposite of what was intended by the figure or table.
-% 	\item [Backgrounds:] Backgrounds of figures and snapshots of screens should be light. Developers often use terminals or development environments with dark backgrounds. Snapshots of these terminals or developments are difficult to read when placed into a report. 
-% 	\item [Titles:] Titles of section should never be followed immediately by another title e.g. a title of a chapter should be followed by text describing the content and relevance of the sections of the chapter and could then be followed by the title of the first section of the chapter.
-% 	\item [Punctuation:] A statement is concluded with a period; a question with a question mark.  
-% 	\item [Spellcheckers:] Use a spellchecker!
-% \end{description}
-
-
-% \section{Figures} 
-
-% The arranging of figures in Latex can lead to spending a lot of time on minor issues e.g. positioning a figure in a specific location on a page, fixing minor issues with an exact size of a figure, etc. Figure~\ref{fig:ImageOfAChick} provides a simple example that demonstrates the use of one of two macros for handling figures, called {\it includefigure}; the other macro,  {\it includescalefigure}, is demonstrated in chapter~\ref{chap:Evaluation}. Figures should always be readable without magnification when printed and the resolution of an image should be sufficient to provide a clear picture when printed.
-
-% \includefigure{fig:ImageOfAChick}{An Image of a chick}{A caption should describe the figure to the reader and explain to the reader the meaning of the figure. A Sub-clause of Murphy's Law: If the interpretation of a figure is left to a reader, the reader will misinterpret the figure, feel insulted or decide to ignore it. Do not leave it up to the reader!}{image.png}
-
-
-% \section{Structure \& Contents}
-
-% At the end of the introduction, a layout of the structure and the contents of the following chapters should be provided for the reader. The overall goal of all descriptions of contents that follows these descriptions is to prepare the reader. The reader should not be surprised by any content that is being presented and should always know how content that is currently being read fits within an overall dissertation.
+In Chapter~6 we summarise what we have learned about designing
+an \ac{SECH} protocol under the chosen threat model and requirments. We then discuss
+various avenues for future work and research related to the project.

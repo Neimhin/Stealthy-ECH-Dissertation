@@ -5,8 +5,8 @@ participant bs as "backend server"
 
 skinparam SequenceMessageAlign direction
 
-c -> cfs: ClientHello\n+<inner_servername>\n
-cfs -> bs: ClientHello\n+stealthy_encrypted_client_hello
+c -> cfs: ClientHelloOuter\n+<inner_servername>\n
+cfs -> bs: ClientHelloInner\n+inner_servername
 bs -> cfs: ServerHello\n+<sech_accept_confirmation>
 cfs --> c: ServerHello
 @enduml

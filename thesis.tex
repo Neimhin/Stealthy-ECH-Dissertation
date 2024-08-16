@@ -1,3 +1,4 @@
+
 \begin{document}                                  %% BEGIN THE DOCUMENT
 
 \thesistitlepage                                  %% Generate the title page.
@@ -9,15 +10,24 @@
 %\hypersetup{pageanchor=true}
 
 \begin{thesisabstract}                            %% the abstract for your thesis
-The \ac{SNI} extension to TLS 1.3 is sent in cleartext and thus susceptible to \ac{PM} and censorship. While the draft \ac{ECH} extension provides a mechanism to hide the \ac{SNI} and other information from surveillance and censorship tools, it falls short in one of its design goals:``Don’t Stick Ou'' \cite{rfc8744-issues}. In this work we propose, manually analyse, and describe the implementation of a stealthy variant of the \ac{ECH} extension, designed to prioritise the goal of not sticking out.
+The \ac{SNI} extension to \ac{TLS} 1.3 is sent as cleartext and is thus susceptible to \ac{PM} and censorship.
+While the draft \ac{ECH} extension provides a mechanism to hide the \ac{SNI} and other information from surveillance and censorship campaigns,
+it falls short in one of its design goals:
+``Don’t Stick Out'' \citep[Section~3.4]{rfc8744-issues}.
+In this work we propose, manually analyse, and report on the implementation of two stealthy variants of the \ac{ECH} extension, dubbed \ac{SECH},
+designed to prioritise the goal of not sticking out.
+In our approach random looking fields
+of the \ac{CH} and \ac{SH} messages are replaced with ciphertext
+and/or cryptographic hashes.
+We propose both a symmetric encryption variant (\ac{SECH} 2), and a \ac{HPKE} variant (\ac{SECH} 3).
 
 \end{thesisabstract}
 
 %\thesisdedicationpage                            %% Generate the dedication page.
 
-\begin{thesisacknowledgments}                     %% Use this to write your
-  Thank you Mum \& Dad.                           %% acknowledgments; it can be anything
-\end{thesisacknowledgments}                       %% allowed in LaTeX2e par-mode.
+%\begin{thesisacknowledgments}                     %% Use this to write your
+%  Thank you Mum \& Dad.                           %% acknowledgments; it can be anything
+%\end{thesisacknowledgments}                       %% allowed in LaTeX2e par-mode.
   
   
 \tableofcontents                                  %% Generate table of contents.
@@ -35,7 +45,9 @@ The \ac{SNI} extension to TLS 1.3 is sent in cleartext and thus susceptible to \
 %\input{chapter/5-implementation-and-testing}
 \input{chapter/6-evaluation}
 \input{chapter/7-conclusions}
+\chapter*{Glossary}
 \input{acronyms}
+
 \nocite{*}
 % \begin{thebibliography}{refs}                   %% Start your bibliography here; you can
 \addcontentsline {toc}{chapter}{Bibliography}     %% Force Bibliography to appear in contents
